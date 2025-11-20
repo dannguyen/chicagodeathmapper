@@ -1,21 +1,26 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
-  import L from 'leaflet';
-  import { basemapLayer } from 'esri-leaflet';
 
-  let searchQuery = $state('');
-  let inputValue = $state('');
-  let intersections = [];
-  let dataLoaded = $state(false);
-  let selectedIntersection = $state(null);
-  let map;
-  let marker;
-  let showAutocomplete = $state(false);
-  let debounceTimer;
+  interface Intersection {
+    intersection: string;
+    longitude: number;
+    latitude: number;
+  }
+
+  let searchQuery = $state<string>('');
+  let inputValue = $state<string>('');
+  let intersections: Intersection[] = [];
+  let dataLoaded = $state<boolean>(false);
+  let selectedIntersection = $state<Intersection | null>(null);
+  let map: any;
+  let marker: any;
+  let L: any;
+  let showAutocomplete = $state<boolean>(false);
+  let debounceTimer: ReturnType<typeof setTimeout>;
 
   // Fetch data on mount
   onMount(async () => {
-    initMap();
+    await initMap();
     try {
       const response = await fetch('/chicago-intersections.json');
       intersections = await response.json();
@@ -25,22 +30,18 @@
     }
   });
 
-  function initMap() {
+  async function initMap() {
+    L = (await import('leaflet')).default;
+
     // Chicago center coordinates
-    const chicagoCenter = [41.8781, -87.6298];
+    const chicagoCenter: [number, number] = [41.8781, -87.6298];
     map = L.map('map').setView(chicagoCenter, 11);
 
-    // Use Esri's satellite imagery with streets overlay
-    basemapLayer('Streets').addTo(map);
-
-    // Fallback
-    map.on('baselayererror', function() {
-      console.log('Falling back to OpenStreetMap');
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
-      }).addTo(map);
-    });
+    // Use OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(map);
   }
 
   // Derived state for filtering
@@ -53,7 +54,7 @@
 
     if (tokens.length === 0) return [];
 
-    const results = [];
+    const results: Intersection[] = [];
     // Optimized filtering: stop after 25 matches
     for (const intersection of intersections) {
       const name = intersection.intersection;
@@ -73,7 +74,7 @@
     }, 300);
   }
 
-  function selectIntersection(intersection) {
+  function selectIntersection(intersection: Intersection) {
     selectedIntersection = intersection;
     inputValue = intersection.intersection;
     searchQuery = intersection.intersection;
@@ -93,11 +94,11 @@
     }
   }
 
-  function escapeRegExp(str) {
-    return str.replace(/[.*+?^${}()|[\\]/g, '\\$&');
+  function escapeRegExp(str: string) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  function highlightText(text, query) {
+  function highlightText(text: string, query: string) {
     const tokens = query.toUpperCase().split(/\s+/).filter(token =>
       token !== 'AND' && token !== '&' && token.trim() !== ''
     );
@@ -175,18 +176,14 @@
       {/if}
     </div>
 
-    {#if !selectedIntersection}
-        <!-- Placeholder/Initial State Map Container (optional, or just keep the map visible always) -->
-         <!-- Actually, the original app hid the map until selection.
-              To render Leaflet correctly, the container must exist.
-              I used a class toggle above.
-         -->
-    {/if}
+
   </div>
 </main>
 
 <style>
-  /* Leaflet requires a height to be set explicitly if not using Tailwind classes or if they don't propagate */
+	@reference "../app.css";
+
+/* Leaflet requires a height to be set explicitly if not using Tailwind classes or if they don't propagate */
   :global(#map) {
     height: 400px;
     z-index: 0; /* Ensure map stays below autocomplete */
