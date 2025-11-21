@@ -1,7 +1,5 @@
 # Chicago Intersections Finder
 
-
-
 ## Project startup notes
 
 This is a single page web-app that allows a user to enter the name of an intersection, e.g.
@@ -19,9 +17,7 @@ For example, if the user types in "Aberdeen and Og", the autocomplete filter sho
 - return each intersection that contains all of the tokens entered so far
 
 So "Aberdeen and Og" should return:
+
 - "N ABERDEEN ST & N OGDEN AVE"
 - "N ABERDEEN ST & S OGDEN PL"
 - "S ABERDEEN AVE & W OGILVY ST"
-
-
-

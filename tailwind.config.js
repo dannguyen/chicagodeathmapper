@@ -1,8 +1,8 @@
 module.exports = {
-  content: ['./src/**/*.{html,js,svelte,ts}'],
-  theme: {
-    extend: {}
-  },
-  safelist: [],
-  plugins: []
+	content: ['./src/**/*.{html,js,svelte,ts}'],
+	theme: {
+		extend: {}
+	},
+	safelist: [],
+	plugins: []
 };
