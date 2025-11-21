@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-
-  interface Intersection {
-    intersection: string;
-    longitude: number;
-    latitude: number;
-  }
+  import { 
+    escapeRegExp, 
+    highlightText, 
+    filterIntersections, 
+    type Intersection 
+  } from '$lib/searchUtils';
 
   let searchQuery = $state<string>('');
   let inputValue = $state<string>('');
@@ -48,24 +48,8 @@
 
   // Derived state for filtering
   let filteredResults = $derived.by(() => {
-    if (!dataLoaded || !searchQuery.trim()) return [];
-
-    const tokens = searchQuery.toUpperCase().split(/\s+/).filter(token =>
-      token !== 'AND' && token !== '&' && token.trim() !== ''
-    );
-
-    if (tokens.length === 0) return [];
-
-    const results: Intersection[] = [];
-    // Optimized filtering: stop after 25 matches
-    for (const intersection of intersections) {
-      const name = intersection.intersection;
-      if (tokens.every(token => name.includes(token))) {
-        results.push(intersection);
-        if (results.length >= 25) break;
-      }
-    }
-    return results;
+    if (!dataLoaded) return [];
+    return filterIntersections(intersections, searchQuery);
   });
 
   function handleInput() {
@@ -74,6 +58,14 @@
     debounceTimer = setTimeout(() => {
       searchQuery = inputValue;
     }, 300);
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' && filteredResults.length > 0) {
+      selectIntersection(filteredResults[0]);
+      showAutocomplete = false; // Hide autocomplete after selection
+      event.preventDefault(); // Prevent form submission if input is part of a form
+    }
   }
 
   function selectIntersection(intersection: Intersection) {
@@ -94,26 +86,6 @@
 
       marker.bindPopup(intersection.intersection).openPopup();
     }
-  }
-
-  function escapeRegExp(str: string) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  function highlightText(text: string, query: string) {
-    const tokens = query.toUpperCase().split(/\s+/).filter(token =>
-      token !== 'AND' && token !== '&' && token.trim() !== ''
-    );
-
-    if (!tokens || tokens.length === 0) {
-      return text;
-    }
-
-    const escapedTokens = tokens.map(token => escapeRegExp(token));
-    const pattern = escapedTokens.join('|');
-    const regex = new RegExp(`(${pattern})`, 'gi');
-
-    return text.replace(regex, '<span class="bg-yellow-300">$1</span>');
   }
 
   function handleInputFocus() {
@@ -143,6 +115,7 @@
         onfocus={handleInputFocus}
         onblur={handleInputBlur}
         oninput={handleInput}
+        onkeydown={handleKeydown}
         placeholder="Enter intersection name..."
         class="w-full p-3 text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         autocomplete="off"
