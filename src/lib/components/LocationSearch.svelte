@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+    import { resolve } from '$app/paths';
+
 	import { highlightFilteredText } from '$lib/inputHelpers';
 	import { type Location } from '$lib/location';
 	import { queryLocationsByName, type DatabaseConnection } from '$lib/db';
@@ -70,9 +72,9 @@
 		searchQuery = location.name;
 		showAutocomplete = false;
 		onSelect(location);
-		// Redirect to the intersection page
 		if (location.id) {
-			goto(`/intersection/${location.id}`);
+			// TODO: use location.category instead of hardcoded intersection
+			goto(resolve(`/intersection/${location.id}`));
 		}
 	}
 </script>
