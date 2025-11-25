@@ -3,12 +3,17 @@
 	import { type Location } from '$lib/location';
 	import { queryLocationsByName, type DatabaseConnection } from '$lib/db';
 
-	let { database, onSelect } = $props<{
+	let {
+		database,
+		onSelect,
+		locationName = ''
+	} = $props<{
 		database: DatabaseConnection;
 		onSelect: (loc: Location) => void;
+		locationName?: string;
 	}>();
 
-	let inputValue = $state<string>('');
+	let inputValue = $state<string>(locationName);
 	let searchQuery = $state<string>('');
 	let showAutocomplete = $state<boolean>(false);
 	let debounceTimer: ReturnType<typeof setTimeout>;
@@ -76,7 +81,7 @@
 		oninput={handleInput}
 		onkeydown={handleKeydown}
 		onclick={handleInputClick}
-		placeholder="Enter location name..."
+		placeholder={locationName || 'Enter location name...'}
 		id="search-input-field"
 		autocomplete="off"
 	/>

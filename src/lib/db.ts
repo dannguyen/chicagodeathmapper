@@ -128,7 +128,7 @@ export function queryLocationsByName(
 
 	const results = conn.db.exec({
 		sql: `
-			SELECT name, latitude, longitude, id
+			SELECT name, category, latitude, longitude, id
 			FROM locations
 			WHERE ${conditions}
 			LIMIT :limit
@@ -138,6 +138,23 @@ export function queryLocationsByName(
 	});
 
 	return results as Location[];
+}
+
+export function queryLocationById(conn: DatabaseConnection, id: string): Location | null {
+	if (!conn.db) return null;
+
+	const results = conn.db.exec({
+		sql: `
+			SELECT name, category, latitude, longitude, id
+			FROM locations
+			WHERE id = :id
+			LIMIT 1
+		`,
+		bind: { ':id': id },
+		rowMode: 'object'
+	});
+
+	return results.length > 0 ? (results[0] as Location) : null;
 }
 
 export function queryNearestToLocation(
