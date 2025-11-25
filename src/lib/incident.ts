@@ -8,7 +8,6 @@ export interface Incident {
 	distance: number;
 }
 
-
 export function enumerateIncidents(items: any[]) {
 	let returnItems: Incident[] = [];
 	items.forEach((item) => {

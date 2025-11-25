@@ -2,9 +2,7 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 
-	import {
-		enumerateIncidents,
-		type Incident } from '$lib/incident';
+	import { enumerateIncidents, type Incident } from '$lib/incident';
 
 	import {
 		highlightFilteredText,
@@ -12,7 +10,7 @@
 		type Location
 	} from '$lib/location';
 
-	import { initDb, registerGeospatialFunctions, type DatabaseConnection } from '$lib/dbUtils';
+	import { initDb, queryNearestToLocation, type DatabaseConnection } from '$lib/db';
 
 	const databasePath: string = resolve('/database.sqlite');
 	let database: DatabaseConnection = { db: null };
@@ -31,43 +29,23 @@
 
 	let incidents: Incident[] = $state([]);
 	let selectedLocation = $state<Location | null>(null);
+	let maxDistance = $state<number>(5280);
 
 	let map: any;
 	let marker: any;
 	let markerLayerGroup: any;
 	let L: any;
 
-
-
 	function findNearbyIncidents(location: Location) {
-		if (!database.db) return;
-		const iLat = location.latitude;
-		const iLon = location.longitude;
-
-		// Query for 5 closest records
-		const stmt = database.db.prepare(`
-          SELECT *, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
-          FROM incidents
-          ORDER BY distance ASC
-          LIMIT 20
-          ;
-      `);
-
-		stmt.bind({ ':lat': iLat, ':lon': iLon });
-
-		const results = [];
-		while (stmt.step()) {
-			const row = stmt.getAsObject();
-			results.push(row);
-		}
-		stmt.free();
+		let results: Array = queryNearestToLocation(database, location, maxDistance);
 
 		incidents = enumerateIncidents(results);
 		console.log(`incident 0 of ${incidents.length}: ${JSON.stringify(incidents[0])}`);
 
 		updateNearbyMarkers(incidents);
 
-		let mappoints: Array = [[iLat, iLon]];
+		// now fit the map to include the points and the location
+		let mappoints: Array = [[location.latitude, location.longitude]];
 		results.forEach((r) => {
 			mappoints.push([r.latitude, r.longitude]);
 		});
@@ -106,7 +84,6 @@
 	async function initDatabase() {
 		database.db = await initDb(databasePath);
 		if (database.db) {
-			registerGeospatialFunctions(database.db);
 		}
 	}
 
@@ -231,6 +208,20 @@
 					{/each}
 				</div>
 			{/if}
+		</div>
+
+		<!-- Max Distance Input -->
+		<div class="max-distance-container">
+			<label for="maxDistance" class="block text-sm font-medium text-gray-700"
+				>Max Distance (feet):</label
+			>
+			<input
+				type="number"
+				id="maxDistance"
+				bind:value={maxDistance}
+				min="1"
+				class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+			/>
 		</div>
 
 		<!-- Result Container -->

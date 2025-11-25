@@ -1,5 +1,5 @@
 {
-	"name": "chicago-intersect-mapper-svelte",
+	"name": "chicago-deathmapper",
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
@@ -17,6 +17,7 @@
 	"devDependencies": {
 		"@fortawesome/fontawesome-svg-core": "latest",
 		"@fortawesome/free-regular-svg-icons": "latest",
+		"@sqlite.org/sqlite-wasm": "3.50.4-build1",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.48.6",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
@@ -28,7 +29,6 @@
 		"autoprefixer": "^10.4.19",
 		"prettier": "^3.3.2",
 		"prettier-plugin-svelte": "^3.2.6",
-		"sql.js": "^1.13.0",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.3.4",
 		"tailwindcss": "^4.0.9",
