@@ -18,6 +18,9 @@ export default {
 		}),
 		paths: {
 			base: dev ? '' : '/chicagodeathmapper'
+		},
+		prerender: {
+			handleUnseenRoutes: 'ignore'
 		}
 	}
 };
