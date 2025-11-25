@@ -30,6 +30,7 @@
 	let incidents: Incident[] = $state([]);
 	let selectedLocation = $state<Location | null>(null);
 	let maxDistance = $state<number>(5280);
+	let distanceDebounceTimer: ReturnType<typeof setTimeout>;
 
 	let map: any;
 	let marker: any;
@@ -73,12 +74,29 @@
 		}
 	}
 
+	function handleInputClick() {
+		inputValue = '';
+		searchQuery = '';
+		showAutocomplete = false;
+		clearTimeout(debounceTimer);
+	}
+
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' && locationResults.length > 0) {
 			selectLocation(locationResults[0]);
 			showAutocomplete = false; // Hide autocomplete after selection
 			event.preventDefault(); // Prevent form submission if input is part of a form
 		}
+	}
+
+	function handleMaxDistanceChange() {
+		clearTimeout(distanceDebounceTimer);
+
+		distanceDebounceTimer = setTimeout(() => {
+			if (selectedLocation) {
+				findNearbyIncidents(selectedLocation);
+			}
+		}, 700);
 	}
 
 	async function initDatabase() {
@@ -183,45 +201,49 @@
 			Locations: {locationCount}
 		</section>
 
-		<!-- Search Container -->
-		<div class="search-container">
-			<input
-				type="text"
-				bind:value={inputValue}
-				onfocus={handleInputFocus}
-				onblur={handleInputBlur}
-				oninput={handleInput}
-				onkeydown={handleKeydown}
-				placeholder="Enter location name..."
-				id="search-input-field"
-				autocomplete="off"
-			/>
+		<div class="input-row">
+			<!-- Search Container -->
+			<div class="search-container">
+				<input
+					type="text"
+					bind:value={inputValue}
+					onfocus={handleInputFocus}
+					onblur={handleInputBlur}
+					oninput={handleInput}
+					onkeydown={handleKeydown}
+					onclick={handleInputClick}
+					placeholder="Enter location name..."
+					id="search-input-field"
+					autocomplete="off"
+				/>
 
-			{#if showAutocomplete && locationResults.length > 0}
-				<div class="location-results-list">
-					{#each locationResults as result}
-						<!-- svelte-ignore a11y_click_events_have_key_events -->
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
-						<div class="location-item" onclick={() => selectLocation(result)}>
-							{@html highlightFilteredText(result.name, searchQuery)}
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
+				{#if showAutocomplete && locationResults.length > 0}
+					<div class="location-results-list">
+						{#each locationResults as result}
+							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<div class="location-item" onclick={() => selectLocation(result)}>
+								{@html highlightFilteredText(result.name, searchQuery)}
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
 
-		<!-- Max Distance Input -->
-		<div class="max-distance-container">
-			<label for="maxDistance" class="block text-sm font-medium text-gray-700"
-				>Max Distance (feet):</label
-			>
-			<input
+			<!-- Max Distance Input -->
+			<div class="max-distance-container">
+				<label for="maxDistance" class="block text-sm font-medium text-gray-700"
+					>Max Distance (feet):</label
+				>
+				<input
 				type="number"
 				id="maxDistance"
 				bind:value={maxDistance}
 				min="1"
+				oninput={handleMaxDistanceChange}
 				class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
 			/>
+		</div>
 		</div>
 
 		<!-- Result Container -->
@@ -307,8 +329,12 @@
 		@apply w-full p-3 text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500;
 	}
 
+	.input-row {
+		@apply flex flex-col gap-4 md:flex-row md:items-end mb-6;
+	}
+
 	.search-container {
-		@apply relative mb-6 z-[1000];
+		@apply relative z-[1000] flex-1;
 	}
 
 	.selected-location {
@@ -317,5 +343,9 @@
 
 	.selected-location-info {
 		@apply font-mono text-sm text-gray-700;
+	}
+
+	.max-distance-container {
+		@apply w-full md:w-56;
 	}
 </style>
