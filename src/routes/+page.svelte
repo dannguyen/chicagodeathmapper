@@ -31,8 +31,9 @@
 	let incidents: Incident[] = $state([]);
 	let selectedLocation = $state<Location | null>(null);
 	let maxDistance = $state<number>(5280);
+	let distanceUnits = 'feet';
 	let distanceDebounceTimer: ReturnType<typeof setTimeout>;
-	let selectedIncidentDetail = $state<string>('');
+	let selectedIncident = $state<Incident | null>(null);
 
 	let map: any;
 	let marker: any;
@@ -44,24 +45,24 @@
 		const label = index + 1;
 		return `<div class="marker-icon">${label}</div>`;
 	}
-	function formatIncidentBrief(item: Incident) {
-		return `${item.title}`;
+
+	function formatIncidentDetail(item: Incident, style: string = '') {
+		if (style === 'brief') {
+			return `${item.title}`;
+		} else {
+			return `<b>${item.title}</b><br>Distance: ${item.distance} feet<br>Date: ${item.date}`;
+		}
 	}
-
-	function formatIncidentDetail(item: Incident) {
-		return `<b>${item.title}</b><br>Distance: ${item.distance} feet<br>Date: ${item.date}`;
-	}
-
-
 
 	function setIncidentDetail(item: Incident | null) {
-		selectedIncidentDetail = item ? formatIncidentDetail(item) : '';
+		selectedIncident = item;
 	}
 
 	function findNearbyIncidents(location: Location) {
 		let results: Array = queryNearestToLocation(database, location, maxDistance);
 
 		incidents = enumerateIncidents(results);
+		setIncidentDetail(null);
 		console.log(`incident 0 of ${incidents.length}: ${JSON.stringify(incidents[0])}`);
 
 		updateNearbyMarkers(incidents);
@@ -175,7 +176,7 @@
 
 			if (!isNaN(lat) && !isNaN(lon)) {
 				const markerHtml = markerIconHtml(index);
-				const popupHtml = formatIncidentBrief(item);
+				const popupHtml = formatIncidentDetail(item, 'brief');
 				const customIcon = L.divIcon({
 					html: markerHtml,
 					className: '',
@@ -269,103 +270,98 @@
 					>Max Distance (feet):</label
 				>
 				<input
-				type="number"
-				id="maxDistance"
-				bind:value={maxDistance}
-				min="1"
-				oninput={handleMaxDistanceChange}
-				class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-			/>
-		</div>
+					type="number"
+					id="maxDistance"
+					bind:value={maxDistance}
+					min="1"
+					oninput={handleMaxDistanceChange}
+					class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+				/>
+			</div>
 		</div>
 
 		<!-- Result Container -->
 		<div class="block" id="main-results-section">
+			<section id="query-result-meta-section">
+				{#key `${selectedLocation?.name ?? 'none'}-${incidents.length}`}
+					<div class="meta-wrapper" transition:slide={{ duration: 300 }}>
+						<div class="selected-location">
+							<div class="selected-location-info">
+								{#if selectedLocation}
+									<div class="meta-line">
+										<span class="meta-label">Location:</span>
+										<span class="location-name">{selectedLocation.name}</span>
+										<span class="location-coordinates">
+											({selectedLocation.longitude},
+											{selectedLocation.latitude})
+										</span>
+									</div>
+									<div class="meta-line">
+										<span class="meta-label">Incidents:</span>
+										{incidents.length}
+										within {maxDistance}
+										{distanceUnits}
+									</div>
+								{:else}
+									<div class="meta-line">
+										<!-- <span class="meta-label">Location:</span> Select a location to see details. -->
+									</div>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/key}
+			</section>
 
-		<section id="query-result-meta-section">
-			{#key `${selectedLocation?.name ?? 'none'}-${incidents.length}`}
-				<div class="meta-wrapper" transition:slide={{ duration: 300 }}>
+			<div class="details-container">
+				<section id="map-section">
+					<div id="map"></div>
+				</section>
+
+				<section id="selected-incident-detail-section">
 					<div class="selected-location">
 						<div class="selected-location-info">
-							{#if selectedLocation}
-								<div class="meta-line">
-									<span class="meta-label">Location:</span> {selectedLocation.name}
+							{#if selectedIncident}
+								<div class="selected-incident-detail" transition:slide={{ duration: 250 }}>
+									{@html formatIncidentDetail(selectedIncident)}
 								</div>
-								<div class="meta-line">
-									<span class="meta-label">Latitude:</span> {selectedLocation.latitude}
-								</div>
-								<div class="meta-line">
-									<span class="meta-label">Longitude:</span> {selectedLocation.longitude}
-								</div>
-							<div class="meta-line">
-								<span class="meta-label">Incidents:</span> {incidents.length}
-							</div>
-
-								{:else}
-								<div class="meta-line">
-									<!-- <span class="meta-label">Location:</span> Select a location to see details. -->
-								</div>
+							{:else}
+								<div class="meta-line">Click an incident to view details here.</div>
 							{/if}
 						</div>
 					</div>
-				</div>
-			{/key}
-		</section>
+				</section>
+			</div>
 
-
-			<div class="details-container">
-
-			<section id="map-section">
-				<div id="map">
-
-				</div>
-			</section>
-
-			<section id="incident-detail-section">
-				<div class="selected-location">
-					<div class="selected-location-info">
-						{#if selectedIncidentDetail}
-							<div class="incident-detail" transition:slide={{ duration: 250 }}>
-								{@html selectedIncidentDetail}
-							</div>
-						{:else}
-							<div class="meta-line">Click an incident to view details here.</div>
-						{/if}
-					</div>
-				</div>
-			</section>
-		</div>
-
-
+			<section id="incidents-list-section">
 				{#if incidents.length > 0}
-					<section id="incidents-list-section">
-						<section class="incidents-list">
-							<table>
-								<thead>
-									<tr>
-										<th class="w-12">Marker</th>
-										<th>Incident</th>
-										<th>Date</th>
-										<th>Category</th>
-										<th>Distance</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each incidents as item, index}
-										<tr onclick={() => showIncidentOnMap(index)} class="clickable-row">
-											<td>{@html markerIconHtml(index)}</td>
-											<td>{item.title}</td>
-											<td>{item.date.toDateString()}</td>
-											<td>{item.category}</td>
-											<td>{item.distance}</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</section>
+					<section class="incidents-list">
+						{#each incidents as item, index}
+							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<div onclick={() => showIncidentOnMap(index)} class="incident-record clickable-row">
+								<div class="incident-record-header">
+									<div class="marker">{@html markerIconHtml(index)}</div>
+									<div class="title">{item.title}</div>
+								</div>
+								<div class="incident-record-details">
+									<div class="incident-date" data-value={item.date}>
+										{item.date.toDateString()}
+									</div>
+									<div class="incident-category">
+										{item.category}
+									</div>
+									<div class="incident-distance">
+										{item.distance}
+										{distanceUnits} away
+									</div>
+								</div>
+							</div>
+						{/each}
 					</section>
 				{/if}
-			</div>
+			</section>
+		</div>
 	</div>
 </main>
 
@@ -437,10 +433,6 @@
 		@apply flex flex-col gap-4 md:flex-row;
 	}
 
-	#incident-detail-section {
-		@apply w-full md:w-1/4;
-	}
-
 	#map-section {
 		@apply w-full md:w-3/4;
 	}
@@ -461,7 +453,23 @@
 		@apply overflow-hidden;
 	}
 
-	.incident-detail :global(b) {
+	#selected-incident-detail-section {
+		@apply w-full md:w-1/4;
+	}
+
+	.selected-incident-detail :global(b) {
 		@apply text-gray-900;
+	}
+
+	.incident-record {
+		@apply border border-gray-400 mb-2 p-4 rounded-md hover:bg-yellow-100;
+	}
+
+	.incident-record-header {
+		@apply flex flex-col gap-4 md:flex-row;
+	}
+
+	.incident-record .incident-record-header .title {
+		@apply w-full md:w-3/4;
 	}
 </style>

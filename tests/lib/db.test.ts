@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
+	maxLimit,
 	queryNearestToLocation,
 	registerGeospatialFunctions,
 	type DbInstance,
@@ -117,7 +118,7 @@ describe('db', () => {
 					bind: {
 						':lat': mockLocation.latitude,
 						':lon': mockLocation.longitude,
-						':limit': 10
+						':limit': maxLimit
 					}
 				})
 			);

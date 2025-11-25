@@ -7,6 +7,8 @@ export interface DatabaseConnection {
 	db: DbInstance | null;
 }
 
+export const maxLimit: number = 1000;
+
 export async function initDb(dbUrl: string): Promise<DbInstance> {
 	const sqlite3 = await initSqlite({
 		locateFile: (name) => resolve(`/${name}`)
@@ -69,7 +71,7 @@ export function queryNearestToLocation(
 	conn: DatabaseConnection,
 	location: Location,
 	maxDistance: number = 5280,
-	limit: number = 10
+	limit: number = maxLimit
 ): any[] {
 	if (!conn.db) return;
 
@@ -91,6 +93,6 @@ export function queryNearestToLocation(
 	let filtered = results.filter((row) => {
 		return row.distance <= maxDistance;
 	});
-	console.log(filtered[0])
+	console.log(filtered[0]);
 	return filtered;
 }
