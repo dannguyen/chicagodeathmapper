@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { highlightFilteredText } from '$lib/inputHelpers';
 	import { type Location } from '$lib/location';
 	import { queryLocationsByName, type DatabaseConnection } from '$lib/db';
@@ -21,7 +22,7 @@
 	let locationResults = $state<Location[]>([]);
 
 	$effect(() => {
-		if (searchQuery.trim() && database.db) {
+		if (searchQuery.trim().length >= 2 && database.db) {
 			locationResults = queryLocationsByName(database, searchQuery);
 		} else {
 			locationResults = [];
@@ -69,6 +70,10 @@
 		searchQuery = location.name;
 		showAutocomplete = false;
 		onSelect(location);
+		// Redirect to the intersection page
+		if (location.id) {
+			goto(`/intersection/${location.id}`);
+		}
 	}
 </script>
 

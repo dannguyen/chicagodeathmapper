@@ -183,6 +183,5 @@ export function queryNearestToLocation(
 	let filtered = results.filter((row) => {
 		return row.distance <= maxDistance;
 	});
-	console.log(filtered[0]);
 	return filtered;
 }
