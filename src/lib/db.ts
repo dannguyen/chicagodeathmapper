@@ -1,46 +1,82 @@
 import initSqlite from '@sqlite.org/sqlite-wasm';
 import { resolve } from '$app/paths';
+import type { Location } from './location';
 
-export type DbInstance = InstanceType<typeof sqlite3.oo1.DB>;
-
-export interface DatabaseConnection {
-	db: DbInstance | null;
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type DbInstance = any;
 
 export const maxLimit: number = 1000;
 
-export async function initDb(dbUrl: string): Promise<DbInstance> {
-	const sqlite3 = await initSqlite({
-		locateFile: (name) => resolve(`/${name}`)
-	});
+export class DatabaseConnection {
+	db: DbInstance | null = null;
+	url: string;
+	summary: { type: string; count: number }[] | null = null;
 
-	const capi = sqlite3.capi;
-	const wasm = sqlite3.wasm;
+	constructor(dbUrl: string) {
+		this.url = dbUrl;
+	}
 
-	const buf = await fetch(dbUrl).then((r) => r.arrayBuffer());
-	const bytes = new Uint8Array(buf);
+	async init(): Promise<void> {
+		const sqlite3 = await initSqlite({
+			locateFile: (name) => resolve(`/${name}`)
+		});
 
-	// allocate WASM memory and copy DB bytes in
-	const p = wasm.allocFromTypedArray(bytes);
+		const capi = sqlite3.capi;
+		const wasm = sqlite3.wasm;
 
-	// create empty DB
-	const db = new sqlite3.oo1.DB();
+		const buf = await fetch(this.url).then((r) => r.arrayBuffer());
+		const bytes = new Uint8Array(buf);
 
-	// deserialize bytes into DB
-	const rc = capi.sqlite3_deserialize(
-		db.pointer,
-		'main',
-		p,
-		bytes.length,
-		bytes.length,
-		capi.SQLITE_DESERIALIZE_FREEONCLOSE | capi.SQLITE_DESERIALIZE_READONLY
-	);
+		// allocate WASM memory and copy DB bytes in
+		const p = wasm.allocFromTypedArray(bytes);
 
-	if (rc) throw new Error('deserialize failed');
+		// create empty DB
+		const db = new sqlite3.oo1.DB();
 
-	registerGeospatialFunctions(db);
+		// deserialize bytes into DB
+		const rc = capi.sqlite3_deserialize(
+			db.pointer,
+			'main',
+			p,
+			bytes.length,
+			bytes.length,
+			capi.SQLITE_DESERIALIZE_FREEONCLOSE | capi.SQLITE_DESERIALIZE_READONLY
+		);
 
-	return db;
+		if (rc) throw new Error('deserialize failed');
+
+		registerGeospatialFunctions(db);
+
+		this.db = db;
+		this.summary = this.getDatabaseSummary();
+	}
+
+	getDatabaseSummary(): { type: string; count: number }[] {
+		if (!this.db) return [];
+
+		const results = this.db.exec({
+			sql: `
+				SELECT
+					'Locations' AS type
+					, COUNT(1) AS count
+				FROM locations
+				UNION ALL
+				SELECT
+					'Incidents' AS type
+					, COUNT(1) AS count
+				FROM incidents
+			`,
+			rowMode: 'object'
+		});
+
+		return results as { type: string; count: number }[];
+	}
+}
+
+export async function initDb(dbUrl: string): Promise<DatabaseConnection> {
+	const conn = new DatabaseConnection(dbUrl);
+	await conn.init();
+	return conn;
 }
 
 export function registerGeospatialFunctions(db: DbInstance) {
@@ -48,7 +84,8 @@ export function registerGeospatialFunctions(db: DbInstance) {
 		name: 'HAVERSINE_DISTANCE',
 		arity: 4,
 		deterministic: true,
-		xFunc: (ctxPtr, lat1: number, lon1: number, lat2: number, lon2: number) => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		xFunc: (ctxPtr: any, lat1: number, lon1: number, lat2: number, lon2: number) => {
 			const toRad = (x: number) => (x * Math.PI) / 180;
 			const R = 3.28084 * 6371e3; // feet
 
@@ -65,6 +102,42 @@ export function registerGeospatialFunctions(db: DbInstance) {
 			return R * c;
 		}
 	});
+}
+
+export function queryLocationsByName(
+	conn: DatabaseConnection,
+	searchString: string,
+	limit: number = 25
+): Location[] {
+	if (!conn.db || !searchString.trim()) return [];
+
+	const tokens = searchString
+		.toUpperCase()
+		.split(/\W+/)
+		.filter((token) => token !== 'AND' && token.replace(/\W+/g, '').trim() !== '');
+
+	if (tokens.length === 0) return [];
+
+	const conditions = tokens.map((_, index) => `name LIKE :token${index}`).join(' AND ');
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const bind: Record<string, any> = {};
+	tokens.forEach((token, index) => {
+		bind[`:token${index}`] = `%${token}%`;
+	});
+	bind[':limit'] = limit;
+
+	const results = conn.db.exec({
+		sql: `
+			SELECT name, latitude, longitude, id
+			FROM locations
+			WHERE ${conditions}
+			LIMIT :limit
+		`,
+		bind,
+		rowMode: 'object'
+	});
+
+	return results as Location[];
 }
 
 export function queryNearestToLocation(

@@ -5,29 +5,15 @@
 
 	import { enumerateIncidents, type Incident } from '$lib/incident';
 
-	import {
-		highlightFilteredText,
-		filterLocationsBySearchString,
-		type Location
-	} from '$lib/location';
+	import type { Location } from '$lib/location';
 
-	import { initDb, queryNearestToLocation, type DatabaseConnection } from '$lib/db';
+	import { queryNearestToLocation, DatabaseConnection } from '$lib/db';
+	import LocationSearch from '$lib/components/LocationSearch.svelte';
 
 	const databasePath: string = resolve('/database.sqlite');
-	let database: DatabaseConnection = { db: null };
-
-	const locationsPath: string = resolve('/locations.json');
-	let locationsArray: Location[] = $state.raw([]);
-	let locationCount: number = $derived(locationsArray.length);
-
+	let database: DatabaseConnection = new DatabaseConnection(databasePath);
+	let databaseSummary = $state([{ type: 'Loading the database...', count: null }]);
 	const defaultGeoCenter: [number, number] = [41.8781, -87.6298];
-	let isDataLoaded = $state<boolean>(false);
-
-	let inputValue = $state<string>('');
-	let searchQuery = $state<string>('');
-	let showAutocomplete = $state<boolean>(false);
-	let debounceTimer: ReturnType<typeof setTimeout>;
-
 	let incidents: Incident[] = $state([]);
 	let selectedLocation = $state<Location | null>(null);
 	let maxDistance = $state<number>(5280);
@@ -75,42 +61,6 @@
 		map.fitBounds(mappoints, { padding: [50, 20], maxZoom: 15 });
 	}
 
-	function handleInput() {
-		showAutocomplete = true;
-		clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => {
-			searchQuery = inputValue;
-		}, 300);
-	}
-
-	function handleInputBlur() {
-		// Small delay to allow click event on results to register
-		setTimeout(() => {
-			showAutocomplete = false;
-		}, 200);
-	}
-
-	function handleInputFocus() {
-		if (inputValue.trim()) {
-			showAutocomplete = true;
-		}
-	}
-
-	function handleInputClick() {
-		inputValue = '';
-		searchQuery = '';
-		showAutocomplete = false;
-		clearTimeout(debounceTimer);
-	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && locationResults.length > 0) {
-			selectLocation(locationResults[0]);
-			showAutocomplete = false; // Hide autocomplete after selection
-			event.preventDefault(); // Prevent form submission if input is part of a form
-		}
-	}
-
 	function handleMaxDistanceChange() {
 		clearTimeout(distanceDebounceTimer);
 
@@ -122,8 +72,10 @@
 	}
 
 	async function initDatabase() {
-		database.db = await initDb(databasePath);
+		await database.init();
 		if (database.db) {
+			databaseSummary = database.summary;
+			console.log(databaseSummary);
 		}
 	}
 
@@ -142,11 +94,8 @@
 		}).addTo(map);
 	}
 
-	function selectLocation(location: Location) {
+	function onLocationSelect(location: Location) {
 		selectedLocation = location;
-		inputValue = location.name;
-		searchQuery = location.name;
-		showAutocomplete = false;
 
 		// Update map
 		if (map) {
@@ -208,61 +157,18 @@
 	onMount(async () => {
 		await initMap();
 		await initDatabase();
-
-		try {
-			const response = await fetch(locationsPath);
-			locationsArray = await response.json();
-			isDataLoaded = true;
-		} catch (error) {
-			console.error('Error loading locations data:', error);
-		}
-	});
-
-	let locationResults = $derived.by(() => {
-		if (!isDataLoaded) return [];
-		return filterLocationsBySearchString(locationsArray, searchQuery);
 	});
 </script>
 
 <main class="main-container">
 	<div class="container">
 		<h1>
-			Chicago Vehicle Crash Finder
-			<i class="fa-regular fa-thumbs-up"></i>
+			<a href={resolve('/')}> Chicago Death Mapper </a>
 		</h1>
-
-		<section class="deck">
-			Locations: {locationCount}
-		</section>
 
 		<div class="input-row">
 			<!-- Search Container -->
-			<div class="search-container">
-				<input
-					type="text"
-					bind:value={inputValue}
-					onfocus={handleInputFocus}
-					onblur={handleInputBlur}
-					oninput={handleInput}
-					onkeydown={handleKeydown}
-					onclick={handleInputClick}
-					placeholder="Enter location name..."
-					id="search-input-field"
-					autocomplete="off"
-				/>
-
-				{#if showAutocomplete && locationResults.length > 0}
-					<div class="location-results-list">
-						{#each locationResults as result}
-							<!-- svelte-ignore a11y_click_events_have_key_events -->
-							<!-- svelte-ignore a11y_no_static_element_interactions -->
-							<div class="location-item" onclick={() => selectLocation(result)}>
-								{@html highlightFilteredText(result.name, searchQuery)}
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
+			<LocationSearch {database} onSelect={onLocationSelect} />
 
 			<!-- Max Distance Input -->
 			<div class="max-distance-container">
@@ -284,7 +190,7 @@
 		<div class="block" id="main-results-section">
 			<section id="query-result-meta-section">
 				{#key `${selectedLocation?.name ?? 'none'}-${incidents.length}`}
-					<div class="meta-wrapper" transition:slide={{ duration: 300 }}>
+					<div class="meta-wrapper" out:slide={{ duration: 300 }}>
 						<div class="selected-location">
 							<div class="selected-location-info">
 								{#if selectedLocation}
@@ -302,11 +208,16 @@
 										within {maxDistance}
 										{distanceUnits}
 									</div>
-								{:else}
-									<div class="meta-line">
-										<!-- <span class="meta-label">Location:</span> Select a location to see details. -->
+								{:else if databaseSummary.length > 0}
+									<div class="database-summary">
+										{#each databaseSummary as item}
+											<div class="meta-line" transition:slide={{ duration: 900 }}>
+												{item.count}
+												<span class="meta-label">{item.type}</span>
+											</div>
+										{/each}
 									</div>
-								{/if}
+								{:else}{/if}
 							</div>
 						</div>
 					</div>
@@ -389,24 +300,8 @@
 		@apply max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6;
 	}
 
-	.location-results-list {
-		@apply absolute w-full max-h-72 overflow-y-auto bg-white border border-gray-300 border-t-0 rounded-b-md shadow-lg z-[1001];
-	}
-
-	.location-results-list .location-item {
-		@apply p-3 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-0;
-	}
-
-	#search-input-field {
-		@apply w-full p-3 text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500;
-	}
-
 	.input-row {
 		@apply flex flex-col gap-4 md:flex-row md:items-end mb-6;
-	}
-
-	.search-container {
-		@apply relative z-[1000] flex-1;
 	}
 
 	.selected-location {

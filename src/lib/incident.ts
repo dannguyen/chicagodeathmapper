@@ -4,8 +4,8 @@ export interface Incident {
 	title: string;
 	date: string;
 	category: string;
-	subcategory: string;
-	distance: number;
+	subcategory?: string;
+	distance?: number;
 }
 
 export function enumerateIncidents(items: any[]) {

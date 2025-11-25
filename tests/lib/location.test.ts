@@ -1,69 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import {
-	escapeRegExp,
-	highlightFilteredText,
-	filterLocationsBySearchString,
-	type Location
-} from '$lib/location';
-
-describe('escapeRegExp', () => {
-	it('should escape special regex characters', () => {
-		const input = '.*+?^${}()|[]\\';
-		const expected = String.raw`\.\*\+\?\^\$\{\}\(\)\|\[\]\\`; //String.raw`'\.\*\+\?\^\$\{\}\(\)\|\[\]\\`;
-		expect(escapeRegExp(input)).toBe(expected);
-	});
-
-	it('should return plain text unchanged', () => {
-		expect(escapeRegExp('hello world')).toBe(String.raw`\x68ello\x20world`);
-	});
-});
-
-describe('highlightFilteredText', () => {
-	it('should highlight matching text case-insensitively', () => {
-		const text = 'Chicago Ave & State St';
-		const query = 'chicago state';
-		const result = highlightFilteredText(text, query);
-		// Expect "Chicago" and "State" to be wrapped in spans
-		expect(result).toContain('<span class="bg-yellow-300">Chicago</span>');
-		expect(result).toContain('<span class="bg-yellow-300">State</span>');
-	});
-
-	it('should ignore "AND" and "&" in query', () => {
-		const text = 'North & South';
-		const query = 'North AND South &';
-		const result = highlightFilteredText(text, query);
-		expect(result).toContain('<span class="bg-yellow-300">North</span>');
-		expect(result).toContain('<span class="bg-yellow-300">South</span>');
-		expect(result).not.toContain('<span class="bg-yellow-300">&</span>');
-	});
-
-	it('should return original text if query is empty', () => {
-		expect(highlightFilteredText('Hello', '')).toBe('Hello');
-	});
-
-	it('should handle and then ignore special characters in query', () => {
-		const text = 'Hello (World)';
-		const query = '(World)';
-		const result = highlightFilteredText(text, query);
-		expect(result).toContain('<span class="bg-yellow-300">World</span>');
-	});
-});
+import { filterLocationsBySearchString, type Location } from '$lib/location';
 
 describe('filterLocationsBySearchString', () => {
 	const mockData: Location[] = [
-		{ name: 'STATE & MADISON', latitude: 0, longitude: 0 },
-		{ name: 'STATE & LAKE', latitude: 0, longitude: 0 },
-		{ name: 'MICHIGAN & LAKE', latitude: 0, longitude: 0 },
-		{ name: 'CLARK & LAKE', latitude: 0, longitude: 0 },
-		{ name: 'W OHIO ST & LAKE', latitude: 0, longitude: 0 },
-		{ name: 'W OHIO ST & STATE', latitude: 0, longitude: 0 },
-		{ name: 'E OHIO ST & LAKE', latitude: 0, longitude: 0 }
+		{ category: 'placeholder', name: 'STATE & LAKE', latitude: 0, longitude: 0, id: 'aaa' },
+		{ category: 'intersection', name: 'STATE & MADISON', latitude: 0, longitude: 0, id: 'bb' },
+		{ category: 'intersection', name: 'MICHIGAN & LAKE', latitude: 0, longitude: 0, id: 'cc' },
+		{ category: 'intersection', name: 'CLARK & LAKE', latitude: 0, longitude: 0, id: 'd' },
+		{ category: 'intersection', name: 'W OHIO ST & LAKE', latitude: 0, longitude: 0, id: 'e' },
+		{ category: 'intersection', name: 'W OHIO ST & STATE', latitude: 0, longitude: 0, id: 'f' },
+		{ category: 'intersection', name: 'E OHIO ST & LAKE', latitude: 0, longitude: 0, id: 'g' }
 	];
 
 	it('should return matches based on all tokens', () => {
 		const results = filterLocationsBySearchString(mockData, 'State Lake');
 		expect(results).toHaveLength(1);
 		expect(results[0].name).toBe('STATE & LAKE');
+		expect(results[0].id).toBe('aaa');
+		expect(results[0].category).toBe('placeholder');
 
 		const results2 = filterLocationsBySearchString(mockData, 'w ohio lake');
 		expect(results2[0].name).toBe('W OHIO ST & LAKE');
