@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
 	import { resolve } from '$app/paths';
 
 	import { enumerateIncidents, type Incident } from '$lib/incident';
@@ -31,11 +32,31 @@
 	let selectedLocation = $state<Location | null>(null);
 	let maxDistance = $state<number>(5280);
 	let distanceDebounceTimer: ReturnType<typeof setTimeout>;
+	let selectedIncidentDetail = $state<string>('');
 
 	let map: any;
 	let marker: any;
 	let markerLayerGroup: any;
+	let incidentMarkers: any[] = [];
 	let L: any;
+
+	function markerIconHtml(index: number) {
+		const label = index + 1;
+		return `<div class="marker-icon">${label}</div>`;
+	}
+	function formatIncidentBrief(item: Incident) {
+		return `${item.title}`;
+	}
+
+	function formatIncidentDetail(item: Incident) {
+		return `<b>${item.title}</b><br>Distance: ${item.distance} feet<br>Date: ${item.date}`;
+	}
+
+
+
+	function setIncidentDetail(item: Incident | null) {
+		selectedIncidentDetail = item ? formatIncidentDetail(item) : '';
+	}
 
 	function findNearbyIncidents(location: Location) {
 		let results: Array = queryNearestToLocation(database, location, maxDistance);
@@ -146,13 +167,15 @@
 		if (!map || !L || !markerLayerGroup) return;
 
 		markerLayerGroup.clearLayers();
+		incidentMarkers = [];
 
 		items.forEach((item, index) => {
 			const lat = item.latitude;
 			const lon = item.longitude;
 
 			if (!isNaN(lat) && !isNaN(lon)) {
-				const markerHtml = `<div class="flex items-center justify-center w-6 h-6 bg-purple-700 text-white font-bold rounded-full border-2 border-white shadow-md">${index + 1}</div>`;
+				const markerHtml = markerIconHtml(index);
+				const popupHtml = formatIncidentBrief(item);
 				const customIcon = L.divIcon({
 					html: markerHtml,
 					className: '',
@@ -161,13 +184,23 @@
 					popupAnchor: [0, -12] // Adjust popup position
 				});
 
-				L.marker([lat, lon], { icon: customIcon })
-					.bindPopup(
-						`<b>${item.title}</b><br>Distance: ${item.distance} feet<br>Date: ${item.date}`
-					)
-					.addTo(markerLayerGroup);
+				const incidentMarker = L.marker([lat, lon], { icon: customIcon }).bindPopup(popupHtml);
+
+				incidentMarker.on('click', () => setIncidentDetail(item));
+
+				incidentMarker.addTo(markerLayerGroup);
+				incidentMarkers[index] = incidentMarker;
 			}
 		});
+	}
+
+	function showIncidentOnMap(index: number) {
+		const marker = incidentMarkers[index];
+		if (!marker || !map) return;
+
+		setIncidentDetail(incidents[index]);
+		marker.openPopup();
+		map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15));
 	}
 
 	// Fetch data on mount
@@ -247,49 +280,92 @@
 		</div>
 
 		<!-- Result Container -->
-		<div class="block">
-			<div id="map"></div>
+		<div class="block" id="main-results-section">
 
-			{#if selectedLocation}
-				<div class="selected-location">
-					<div class="selected-location-info">
-						<div>{selectedLocation.name}</div>
+		<section id="query-result-meta-section">
+			{#key `${selectedLocation?.name ?? 'none'}-${incidents.length}`}
+				<div class="meta-wrapper" transition:slide={{ duration: 300 }}>
+					<div class="selected-location">
+						<div class="selected-location-info">
+							{#if selectedLocation}
+								<div class="meta-line">
+									<span class="meta-label">Location:</span> {selectedLocation.name}
+								</div>
+								<div class="meta-line">
+									<span class="meta-label">Latitude:</span> {selectedLocation.latitude}
+								</div>
+								<div class="meta-line">
+									<span class="meta-label">Longitude:</span> {selectedLocation.longitude}
+								</div>
+							<div class="meta-line">
+								<span class="meta-label">Incidents:</span> {incidents.length}
+							</div>
 
-						<div>
-							Latitude: {selectedLocation.latitude}
-						</div>
-						<div>
-							Longitude: {selectedLocation.longitude}
+								{:else}
+								<div class="meta-line">
+									<!-- <span class="meta-label">Location:</span> Select a location to see details. -->
+								</div>
+							{/if}
 						</div>
 					</div>
 				</div>
-			{/if}
+			{/key}
+		</section>
 
-			{#if incidents.length > 0}
-				<section class="incidents-list">
-					<table>
-						<thead>
-							<tr>
-								<th>Incident</th>
-								<th>Date</th>
-								<th>Category</th>
-								<th>Distance</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each incidents as item, index}
-								<tr>
-									<td>{index + 1}. {item.title}</td>
-									<td>{item.date.toDateString()}</td>
-									<td>{item.category}</td>
-									<td>{item.distance}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</section>
-			{/if}
+
+			<div class="details-container">
+
+			<section id="map-section">
+				<div id="map">
+
+				</div>
+			</section>
+
+			<section id="incident-detail-section">
+				<div class="selected-location">
+					<div class="selected-location-info">
+						{#if selectedIncidentDetail}
+							<div class="incident-detail" transition:slide={{ duration: 250 }}>
+								{@html selectedIncidentDetail}
+							</div>
+						{:else}
+							<div class="meta-line">Click an incident to view details here.</div>
+						{/if}
+					</div>
+				</div>
+			</section>
 		</div>
+
+
+				{#if incidents.length > 0}
+					<section id="incidents-list-section">
+						<section class="incidents-list">
+							<table>
+								<thead>
+									<tr>
+										<th class="w-12">Marker</th>
+										<th>Incident</th>
+										<th>Date</th>
+										<th>Category</th>
+										<th>Distance</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each incidents as item, index}
+										<tr onclick={() => showIncidentOnMap(index)} class="clickable-row">
+											<td>{@html markerIconHtml(index)}</td>
+											<td>{item.title}</td>
+											<td>{item.date.toDateString()}</td>
+											<td>{item.category}</td>
+											<td>{item.distance}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</section>
+					</section>
+				{/if}
+			</div>
 	</div>
 </main>
 
@@ -347,5 +423,45 @@
 
 	.max-distance-container {
 		@apply w-full md:w-56;
+	}
+
+	:global(.marker-icon) {
+		@apply flex items-center justify-center w-6 h-6 bg-purple-700 text-white font-bold rounded-full border-2 border-white shadow-md;
+	}
+
+	.clickable-row {
+		@apply cursor-pointer hover:bg-gray-50;
+	}
+
+	.details-container {
+		@apply flex flex-col gap-4 md:flex-row;
+	}
+
+	#incident-detail-section {
+		@apply w-full md:w-1/4;
+	}
+
+	#map-section {
+		@apply w-full md:w-3/4;
+	}
+
+	#query-result-meta-section {
+		@apply mb-4;
+	}
+
+	.meta-line {
+		@apply flex gap-2 items-baseline;
+	}
+
+	.meta-label {
+		@apply font-semibold text-gray-800;
+	}
+
+	.meta-wrapper {
+		@apply overflow-hidden;
+	}
+
+	.incident-detail :global(b) {
+		@apply text-gray-900;
 	}
 </style>

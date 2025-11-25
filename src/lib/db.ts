@@ -88,7 +88,9 @@ export function queryNearestToLocation(
 		},
 		rowMode: 'object'
 	});
-	return results.filter((row) => {
+	let filtered = results.filter((row) => {
 		return row.distance <= maxDistance;
 	});
+	console.log(filtered[0])
+	return filtered;
 }
