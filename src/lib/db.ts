@@ -1,6 +1,7 @@
 import initSqlite from '@sqlite.org/sqlite-wasm';
 import { resolve } from '$app/paths';
 import type { Location } from './location';
+import { base, assets } from '$app/paths';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DbInstance = any;
@@ -10,7 +11,6 @@ export const maxLimit: number = 1000;
 export class DatabaseConnection {
 	db: DbInstance | null = null;
 	url: string;
-	summary: { type: string; count: number }[] | null = null;
 
 	constructor(dbUrl: string) {
 		this.url = dbUrl;
@@ -18,7 +18,7 @@ export class DatabaseConnection {
 
 	async init(): Promise<void> {
 		const sqlite3 = await initSqlite({
-			locateFile: (name) => resolve(`/${name}`)
+			locateFile: (name) => `${assets}/${name}`
 		});
 
 		const capi = sqlite3.capi;
@@ -35,7 +35,7 @@ export class DatabaseConnection {
 
 		// deserialize bytes into DB
 		const rc = capi.sqlite3_deserialize(
-			db.pointer,
+			db.pointer as number,
 			'main',
 			p,
 			bytes.length,
@@ -48,7 +48,6 @@ export class DatabaseConnection {
 		registerGeospatialFunctions(db);
 
 		this.db = db;
-		this.summary = this.getDatabaseSummary();
 	}
 
 	getDatabaseSummary(): { type: string; count: number }[] {
@@ -163,7 +162,7 @@ export function queryNearestToLocation(
 	maxDistance: number = 5280,
 	limit: number = maxLimit
 ): any[] {
-	if (!conn.db) return;
+	if (!conn.db) return [];
 
 	const results: any[] = conn.db.exec({
 		sql: `

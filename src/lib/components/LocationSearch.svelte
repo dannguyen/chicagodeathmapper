@@ -104,7 +104,7 @@
 	{/if}
 </div>
 
-<style>
+<style lang="postcss">
 	@reference "../../app.css";
 
 	.location-results-list {

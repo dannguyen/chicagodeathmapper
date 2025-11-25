@@ -85,14 +85,26 @@ describe('db', () => {
 			id: '1',
 			name: 'Test Loc',
 			latitude: 41.8,
-			longitude: -87.6
+			longitude: -87.6,
+			category: 'intersection'
 		};
 
-		it('should return undefined if db is null', () => {
-			const conn: DatabaseConnection = { db: null };
-			// @ts-ignore
+		const createMockConnection = (
+			overrides: Partial<DatabaseConnection> = {}
+		): DatabaseConnection => {
+			return {
+				db: null,
+				url: 'mock-url',
+				init: vi.fn(),
+				getDatabaseSummary: vi.fn(),
+				...overrides
+			};
+		};
+
+		it('should return empty array if db is null', () => {
+			const conn = createMockConnection({ db: null });
 			const results = queryNearestToLocation(conn, mockLocation);
-			expect(results).toBeUndefined();
+			expect(results).toEqual([]);
 		});
 
 		it('should execute SQL and filter results', () => {
@@ -100,7 +112,7 @@ describe('db', () => {
 			const mockDb = {
 				exec: mockExec
 			} as unknown as DbInstance;
-			const conn: DatabaseConnection = { db: mockDb };
+			const conn = createMockConnection({ db: mockDb });
 
 			// Mock results from DB (already simulated distance calculation)
 			const dbResults = [
@@ -132,7 +144,7 @@ describe('db', () => {
 
 		it('should respect maxDistance parameter', () => {
 			const mockExec = vi.fn();
-			const conn: DatabaseConnection = { db: { exec: mockExec } as unknown as DbInstance };
+			const conn = createMockConnection({ db: { exec: mockExec } as unknown as DbInstance });
 
 			mockExec.mockReturnValue([{ distance: 100 }, { distance: 200 }]);
 

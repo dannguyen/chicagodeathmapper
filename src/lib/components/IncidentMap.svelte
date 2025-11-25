@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { resolve } from '$app/paths';
+	import { base, assets } from '$app/paths';
 
 	import { enumerateIncidents, type Incident } from '$lib/incident';
 
@@ -15,9 +16,12 @@
 		initialLocationCategory?: string | null;
 	}>();
 
-	const databasePath: string = resolve('/database.sqlite');
+	const databasePath: string = `${assets}/database.sqlite`;
 	let database: DatabaseConnection = new DatabaseConnection(databasePath);
-	let databaseSummary = $state([{ type: 'Loading the database...', count: null }]);
+	let databaseSummary: { type: string; count: number | null }[] = $state([
+		{ type: 'Loading the database...', count: null }
+	]);
+
 	const defaultGeoCenter: [number, number] = [41.8781, -87.6298];
 	let incidents: Incident[] = $state([]);
 	let selectedLocation = $state<Location | null>(null);
@@ -50,16 +54,16 @@
 	}
 
 	function findNearbyIncidents(location: Location) {
-		let results: Array = queryNearestToLocation(database, location, maxDistance);
+		let results: Incident[] = queryNearestToLocation(database, location, maxDistance);
 
 		incidents = enumerateIncidents(results);
 		setIncidentDetail(null);
-		console.log(`incident 0 of ${incidents.length}: ${JSON.stringify(incidents[0])}`);
+		// console.log(`incident 0 of ${incidents.length}: ${JSON.stringify(incidents[0])}`);
 
 		updateNearbyMarkers(incidents);
 
 		// now fit the map to include the points and the location
-		let mappoints: Array = [[location.latitude, location.longitude]];
+		let mappoints: [number, number][] = [[location.latitude, location.longitude]];
 		results.forEach((r) => {
 			mappoints.push([r.latitude, r.longitude]);
 		});
@@ -79,7 +83,7 @@
 	async function initDatabase() {
 		await database.init();
 		if (database.db) {
-			databaseSummary = database.summary;
+			databaseSummary = database.getDatabaseSummary();
 
 			if (initialLocationId) {
 				const loc = queryLocationById(database, initialLocationId);
@@ -298,7 +302,7 @@
 	</div>
 </main>
 
-<style>
+<style lang="postcss">
 	@reference "../../app.css";
 
 	/* Leaflet requires a height to be set explicitly if not using Tailwind classes or if they don't propagate */

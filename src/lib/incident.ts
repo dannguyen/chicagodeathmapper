@@ -2,7 +2,7 @@ export interface Incident {
 	longitude: number;
 	latitude: number;
 	title: string;
-	date: string;
+	date: Date;
 	category: string;
 	subcategory?: string;
 	distance?: number;
