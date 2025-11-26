@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, setContext } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { resolve } from '$app/paths';
-	import { base, assets } from '$app/paths';
-	import { currentAgeSimplified, prettifyInteger } from '$lib/transformHelpers';
-	import wellknown from 'wellknown';
+	import { assets } from '$app/paths';
 
 	import { reifyIncidents, Incident } from '$lib/incident';
-
-	import type { Location } from '$lib/location';
+	import { Location } from '$lib/location';
 
 	import { queryNearestToLocation, queryLocationById, DatabaseConnection } from '$lib/db';
 	import LocationSearch from '$lib/components/LocationSearch.svelte';
+	import IncidentList from '$lib/components/IncidentList.svelte';
+	import IncidentDetail from '$lib/components/IncidentDetail.svelte';
+	import MapContainer from '$lib/components/MapContainer.svelte';
 
 	let { initialLocationId = null, initialLocationCategory = 'Location' } = $props<{
 		initialLocationId?: string | null;
@@ -29,27 +29,7 @@
 	let selectedLocation = $state<Location | null>(null);
 	let maxDistance = $state<number>(5280);
 	let distanceUnits = 'feet';
-	let distanceDebounceTimer: ReturnType<typeof setTimeout>;
 	let selectedIncident = $state<Incident | null>(null);
-
-	let map: any;
-	let activeMarker: any = null;
-	let markerLayerGroup: any;
-	let incidentMarkers: any[] = [];
-	let L: any;
-
-	function markerIconHtml(index: number) {
-		const label = index + 1;
-		return `<div class="marker-icon">${label}</div>`;
-	}
-
-	function formatIncidentDetail(item: Incident, style: string = '') {
-		if (style === 'brief') {
-			return `${item.title}`;
-		} else {
-			return `<b>${item.title}</b><br>Distance: ${item.distance} feet<br>Date: ${item.date}`;
-		}
-	}
 
 	function setIncidentDetail(item: Incident | null) {
 		selectedIncident = item;
@@ -57,32 +37,35 @@
 
 	function findNearbyIncidents(location: Location) {
 		let results: Incident[] = queryNearestToLocation(database, location, maxDistance);
-
 		incidents = reifyIncidents(results);
-		setIncidentDetail(null);
-		// console.log(`incident 0 of ${incidents.length}: ${JSON.stringify(incidents[0])}`);
+		setIncidentDetail(null); // Clear selected incident when new search occurs
+	}
 
-		updateNearbyMarkers(incidents);
-
-		// now fit the map to include the points and the location
-		let mappoints: [number, number][] = [[location.latitude, location.longitude]];
-		results.forEach((r) => {
-			mappoints.push([r.latitude, r.longitude]);
-		});
-		map.fitBounds(mappoints, { padding: [50, 20], maxZoom: 15 });
+	function onLocationSelect(location: Location) {
+		selectedLocation = location;
+		findNearbyIncidents(location);
 	}
 
 	function handleMaxDistanceChange() {
-		clearTimeout(distanceDebounceTimer);
-
-		distanceDebounceTimer = setTimeout(() => {
-			if (selectedLocation) {
-				findNearbyIncidents(selectedLocation);
-			}
-		}, 700);
+		if (selectedLocation) {
+			findNearbyIncidents(selectedLocation);
+		}
 	}
 
-	async function initDatabase() {
+	function showIncidentOnMap(index: number) {
+		// This function now just sets the selected incident,
+		// MapContainer will react to `selectedIncident` changes.
+		setIncidentDetail(incidents[index]);
+	}
+
+	$effect(() => {
+		// Whenever selectedLocation or maxDistance changes, refetch incidents
+		if (selectedLocation) {
+			findNearbyIncidents(selectedLocation);
+		}
+	});
+
+	onMount(async () => {
 		await database.init();
 		if (database.db) {
 			databaseSummary = database.getDatabaseSummary();
@@ -101,138 +84,6 @@
 				}
 			}
 		}
-	}
-
-	async function initMap() {
-		L = (await import('leaflet')).default;
-
-		// Chicago center coordinates
-		map = L.map('map').setView(defaultGeoCenter, 11);
-		markerLayerGroup = L.layerGroup().addTo(map);
-
-		// Use OpenStreetMap
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution:
-				'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-			maxZoom: 19
-		}).addTo(map);
-	}
-
-	function makePointMarker(location: Location) {
-		const mk = L.marker([location.latitude, location.longitude]);
-		mk.bindPopup(location.name).openPopup();
-		return mk;
-	}
-
-	function makeShapeMarker(location: Location) {
-		const geometry = wellknown.parse(location.the_geom);
-		console.log(`its a ${location.category}`);
-		console.log(geometry);
-		const features = [
-			{
-				type: 'Feature',
-				geometry,
-				properties: {
-					id: location.id,
-					name: location.name,
-					category: location.category
-				}
-			}
-		];
-
-		const mk = L.geoJSON(
-			{
-				type: 'FeatureCollection',
-				features
-			},
-			{
-				style: () => ({
-					weight: 1,
-					color: '#4455bb',
-					fillOpacity: 0.4
-				}),
-				onEachFeature: (feature: Record<string, unknown>, layer: any) => {
-					const p = feature.properties as Record<string, unknown>;
-					if (p?.name) {
-						layer.bindPopup(p.name);
-					}
-				}
-			}
-		);
-
-		return mk;
-	}
-
-	function clearActiveLayer() {
-		if (activeMarker) {
-			map.removeLayer(activeMarker);
-			activeMarker = null;
-		}
-	}
-
-	function onLocationSelect(location: Location) {
-		selectedLocation = location;
-
-		// Update map
-		if (map) {
-			clearActiveLayer();
-			map.setView([location.latitude, location.longitude], 16);
-
-			if (location.isShape) {
-				activeMarker = makeShapeMarker(location);
-			} else {
-				activeMarker = makePointMarker(location);
-			}
-
-			activeMarker.addTo(map);
-			findNearbyIncidents(location);
-		}
-	}
-
-	function updateNearbyMarkers(items: Incident[]) {
-		if (!map || !L || !markerLayerGroup) return;
-
-		markerLayerGroup.clearLayers();
-		incidentMarkers = [];
-
-		items.forEach((item, index) => {
-			const lat = item.latitude;
-			const lon = item.longitude;
-
-			if (!isNaN(lat) && !isNaN(lon)) {
-				const markerHtml = markerIconHtml(index);
-				const popupHtml = formatIncidentDetail(item, 'brief');
-				const customIcon = L.divIcon({
-					html: markerHtml,
-					className: '',
-					iconSize: [24, 24],
-					iconAnchor: [12, 12],
-					popupAnchor: [0, -12] // Adjust popup position
-				});
-
-				const incidentMarker = L.marker([lat, lon], { icon: customIcon }).bindPopup(popupHtml);
-
-				incidentMarker.on('click', () => setIncidentDetail(item));
-
-				incidentMarker.addTo(markerLayerGroup);
-				incidentMarkers[index] = incidentMarker;
-			}
-		});
-	}
-
-	function showIncidentOnMap(index: number) {
-		const mk = incidentMarkers[index];
-		if (!mk || !map) return;
-
-		setIncidentDetail(incidents[index]);
-		mk.openPopup();
-		map.setView(mk.getLatLng(), Math.max(map.getZoom(), 15));
-	}
-
-	// Fetch data on mount
-	onMount(async () => {
-		await initMap();
-		await initDatabase();
 	});
 </script>
 
@@ -301,55 +152,14 @@
 
 		<div class="details-container">
 			<section id="map-section">
-				<div id="map"></div>
+				<MapContainer {selectedLocation} {incidents} {setIncidentDetail} {defaultGeoCenter} />
 			</section>
 
-			<section id="selected-incident-detail-section">
-				<div class="selected-location">
-					<div class="selected-location-info">
-						{#if selectedIncident}
-							<div class="selected-incident-detail" transition:slide={{ duration: 250 }}>
-								{@html formatIncidentDetail(selectedIncident)}
-							</div>
-						{:else}
-							<div class="meta-line">Click an incident to view details here.</div>
-						{/if}
-					</div>
-				</div>
-			</section>
+			<IncidentDetail {selectedIncident} />
 		</div>
 
 		<section id="incidents-list-section">
-			{#if incidents.length > 0}
-				<section class="incidents-list">
-					{#each incidents as item, index}
-						<!-- svelte-ignore a11y_click_events_have_key_events -->
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
-						<div onclick={() => showIncidentOnMap(index)} class="incident-record clickable-row">
-							<div class="incident-record-header">
-								<div class="marker">{@html markerIconHtml(index)}</div>
-								<div class="title">{item.title}</div>
-							</div>
-							<div class="incident-record-details">
-								<div class="incident-date" data-value={item.date}>
-									{item.date.toDateString()}
-
-									<em>
-										({currentAgeSimplified(item.date)})
-									</em>
-								</div>
-								<div class="incident-category">
-									{item.category}
-								</div>
-								<div class="incident-distance">
-									{prettifyInteger(item.distance as number)}
-									{distanceUnits} away
-								</div>
-							</div>
-						</div>
-					{/each}
-				</section>
-			{/if}
+			<IncidentList {incidents} {distanceUnits} {showIncidentOnMap} />
 		</section>
 	</div>
 </div>
@@ -357,18 +167,8 @@
 <style lang="postcss">
 	@reference "../../app.css";
 
-	/* Leaflet requires a height to be set explicitly if not using Tailwind classes or if they don't propagate */
-	:global(#map) {
-		height: 400px;
-		z-index: 0; /* Ensure map stays below autocomplete */
-		@apply h-96 w-full rounded-md border border-gray-300 mb-4 z-0;
-	}
-
 	h1 {
 		@apply text-3xl font-bold text-center text-gray-800 mb-6;
-	}
-
-	.incidents-list {
 	}
 
 	.container {
@@ -391,26 +191,6 @@
 		@apply w-full md:w-56;
 	}
 
-	:global(.marker-icon) {
-		@apply flex items-center justify-center w-6 h-6 bg-purple-700 text-white font-bold rounded-full border-2 border-white shadow-md;
-	}
-
-	.clickable-row {
-		@apply cursor-pointer hover:bg-gray-50;
-	}
-
-	.details-container {
-		@apply flex flex-col gap-4 md:flex-row;
-	}
-
-	#map-section {
-		@apply w-full md:w-3/4;
-	}
-
-	#query-result-meta-section {
-		@apply mb-4;
-	}
-
 	.meta-line {
 		@apply flex gap-2 items-baseline;
 	}
@@ -423,23 +203,11 @@
 		@apply overflow-hidden;
 	}
 
-	#selected-incident-detail-section {
-		@apply w-full md:w-1/4;
-	}
-
-	.selected-incident-detail :global(b) {
-		@apply text-gray-900;
-	}
-
-	.incident-record {
-		@apply border border-gray-400 mb-2 p-4 rounded-md hover:bg-yellow-100;
-	}
-
-	.incident-record-header {
+	.details-container {
 		@apply flex flex-col gap-4 md:flex-row;
 	}
 
-	.incident-record .incident-record-header .title {
+	#map-section {
 		@apply w-full md:w-3/4;
 	}
 </style>

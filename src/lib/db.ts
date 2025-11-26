@@ -1,6 +1,7 @@
 import initSqlite from '@sqlite.org/sqlite-wasm';
 import { resolve } from '$app/paths';
 import { Location } from './location';
+import { Incident } from './incident';
 import { base, assets } from '$app/paths';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,7 +79,7 @@ export async function initDb(dbUrl: string): Promise<DatabaseConnection> {
 	return conn;
 }
 
-export function registerGeospatialFunctions(db: DbInstance) {
+export function registerGeospatialFunctions(db: DbInstance): void {
 	db.createFunction({
 		name: 'HAVERSINE_DISTANCE',
 		arity: 4,
@@ -165,62 +166,25 @@ export function queryNearestToLocation(
 	location: Location,
 	maxDistance: number = 5280,
 	limit: number = maxLimit
-): any[] {
+): Incident[] {
 	if (!conn.db) return [];
 
-	let results: any[] = [];
-	let filtered: any[] = [];
+	const results = conn.db.exec({
+		sql: `
+			SELECT *, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
+			FROM incidents
+			WHERE distance <= :maxDistance
+			ORDER BY crash_date desc
+			LIMIT :limit
+			;`,
+		bind: {
+			':lat': location.latitude,
+			':lon': location.longitude,
+			':maxDistance': maxDistance,
+			':limit': limit
+		},
+		rowMode: 'object'
+	});
 
-	if (location.category === 'intersection') {
-		results = conn.db.exec({
-			sql: `
-				SELECT *, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
-				FROM incidents
-				ORDER BY crash_date desc
-				LIMIT :limit
-				;`,
-			bind: {
-				':lat': location.latitude,
-				':lon': location.longitude,
-				':limit': limit
-			},
-			rowMode: 'object'
-		});
-		filtered = results.filter((row) => {
-			return row.distance <= maxDistance;
-		});
-	} else {
-		results = conn.db.exec({
-			// sql: `
-			// 	SELECT *, 0 AS disstance
-			// 	FROM incidents
-			// 	WHERE ST_Contains(
-			// 		:boundaries,
-			// 		MakePoint(:lon, :lat, 4326)
-			// 	)
-			// 	;`,
-			// bind: {
-			// 	':lat': location.latitude,
-			// 	':lon': location.longitude,
-			// 	':boundaries': location.the_geom
-			// },
-			sql: `
-				SELECT *, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
-				FROM incidents
-				ORDER BY crash_date desc
-				LIMIT :limit
-				;`,
-			bind: {
-				':lat': location.latitude,
-				':lon': location.longitude,
-				':limit': limit
-			},
-			rowMode: 'object'
-		});
-		// filtered = results;
-		filtered = results.filter((row) => {
-			return row.distance <= maxDistance;
-		});
-	}
-	return filtered;
+	return results.map((r: any) => new Incident(r)) as Incident[];
 }
