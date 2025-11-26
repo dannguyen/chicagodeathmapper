@@ -6,7 +6,7 @@
 	import { currentAgeSimplified, prettifyInteger } from '$lib/transformHelpers';
 	import wellknown from 'wellknown';
 
-	import { enumerateIncidents, type Incident } from '$lib/incident';
+	import { reifyIncidents, Incident } from '$lib/incident';
 
 	import type { Location } from '$lib/location';
 
@@ -58,7 +58,7 @@
 	function findNearbyIncidents(location: Location) {
 		let results: Incident[] = queryNearestToLocation(database, location, maxDistance);
 
-		incidents = enumerateIncidents(results);
+		incidents = reifyIncidents(results);
 		setIncidentDetail(null);
 		// console.log(`incident 0 of ${incidents.length}: ${JSON.stringify(incidents[0])}`);
 
@@ -119,13 +119,13 @@
 	}
 
 	function makePointMarker(location: Location) {
-		const mk = L.marker([location.latitude, location.longitude]).addTo(map);
+		const mk = L.marker([location.latitude, location.longitude]);
 		mk.bindPopup(location.name).openPopup();
 		return mk;
 	}
 
 	function makeShapeMarker(location: Location) {
-		const geometry = wellknown.parse(location.the_geom); // { type: 'MultiPolygon', coordinates: [...] }
+		const geometry = wellknown.parse(location.the_geom);
 		console.log(`its a ${location.category}`);
 		console.log(geometry);
 		const features = [
@@ -148,8 +148,8 @@
 			{
 				style: () => ({
 					weight: 1,
-					color: '#3388ff',
-					fillOpacity: 0.2
+					color: '#4455bb',
+					fillOpacity: 0.4
 				}),
 				onEachFeature: (feature: Record<string, unknown>, layer: any) => {
 					const p = feature.properties as Record<string, unknown>;
@@ -158,7 +158,7 @@
 					}
 				}
 			}
-		).addTo(map);
+		);
 
 		return mk;
 	}
@@ -178,12 +178,13 @@
 			clearActiveLayer();
 			map.setView([location.latitude, location.longitude], 16);
 
-			if (location.category === 'intersection') {
-				activeMarker = makePointMarker(location);
-			} else {
+			if (location.isShape) {
 				activeMarker = makeShapeMarker(location);
+			} else {
+				activeMarker = makePointMarker(location);
 			}
 
+			activeMarker.addTo(map);
 			findNearbyIncidents(location);
 		}
 	}
@@ -235,129 +236,123 @@
 	});
 </script>
 
-<main class="main-container">
-	<div class="container">
-		<h1>
-			<a href={resolve('/')}> Chicago Death Mapper </a>
-		</h1>
+<div class="container">
+	<h1>
+		<a href={resolve('/')}> Chicago Death Mapper </a>
+	</h1>
 
-		<div class="input-row">
-			<!-- Search Container -->
-			<LocationSearch
-				{database}
-				onSelect={onLocationSelect}
-				locationName={selectedLocation?.name}
+	<div class="input-row">
+		<!-- Search Container -->
+		<LocationSearch {database} onSelect={onLocationSelect} locationName={selectedLocation?.name} />
+
+		<!-- Max Distance Input -->
+		<div class="max-distance-container">
+			<label for="maxDistance" class="block text-sm font-medium text-gray-700"
+				>Max Distance (feet):</label
+			>
+			<input
+				type="number"
+				id="maxDistance"
+				bind:value={maxDistance}
+				min="1"
+				oninput={handleMaxDistanceChange}
+				class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
 			/>
-
-			<!-- Max Distance Input -->
-			<div class="max-distance-container">
-				<label for="maxDistance" class="block text-sm font-medium text-gray-700"
-					>Max Distance (feet):</label
-				>
-				<input
-					type="number"
-					id="maxDistance"
-					bind:value={maxDistance}
-					min="1"
-					oninput={handleMaxDistanceChange}
-					class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-				/>
-			</div>
-		</div>
-
-		<!-- Result Container -->
-		<div class="block" id="main-results-section">
-			<section id="query-result-meta-section">
-				{#key `${selectedLocation?.name ?? 'none'}-${incidents.length}`}
-					<div class="meta-wrapper" out:slide={{ duration: 300 }}>
-						<div class="selected-location">
-							<div class="selected-location-info">
-								{#if selectedLocation}
-									<div class="meta-line">
-										<span class="meta-label">Location:</span>
-										<span class="location-name">{selectedLocation.name}</span>
-										<span class="location-coordinates">
-											({selectedLocation.longitude},
-											{selectedLocation.latitude})
-										</span>
-									</div>
-									<div class="meta-line">
-										<span class="meta-label">Incidents:</span>
-										{incidents.length}
-										within {maxDistance}
-										{distanceUnits}
-									</div>
-								{:else if databaseSummary.length > 0}
-									<div class="database-summary">
-										{#each databaseSummary as item}
-											<div class="meta-line" transition:slide={{ duration: 900 }}>
-												{item.count}
-												<span class="meta-label">{item.type}</span>
-											</div>
-										{/each}
-									</div>
-								{:else}{/if}
-							</div>
-						</div>
-					</div>
-				{/key}
-			</section>
-
-			<div class="details-container">
-				<section id="map-section">
-					<div id="map"></div>
-				</section>
-
-				<section id="selected-incident-detail-section">
-					<div class="selected-location">
-						<div class="selected-location-info">
-							{#if selectedIncident}
-								<div class="selected-incident-detail" transition:slide={{ duration: 250 }}>
-									{@html formatIncidentDetail(selectedIncident)}
-								</div>
-							{:else}
-								<div class="meta-line">Click an incident to view details here.</div>
-							{/if}
-						</div>
-					</div>
-				</section>
-			</div>
-
-			<section id="incidents-list-section">
-				{#if incidents.length > 0}
-					<section class="incidents-list">
-						{#each incidents as item, index}
-							<!-- svelte-ignore a11y_click_events_have_key_events -->
-							<!-- svelte-ignore a11y_no_static_element_interactions -->
-							<div onclick={() => showIncidentOnMap(index)} class="incident-record clickable-row">
-								<div class="incident-record-header">
-									<div class="marker">{@html markerIconHtml(index)}</div>
-									<div class="title">{item.title}</div>
-								</div>
-								<div class="incident-record-details">
-									<div class="incident-date" data-value={item.date}>
-										{item.date.toDateString()}
-
-										<em>
-											({currentAgeSimplified(item.date)})
-										</em>
-									</div>
-									<div class="incident-category">
-										{item.category}
-									</div>
-									<div class="incident-distance">
-										{prettifyInteger(item.distance as number)}
-										{distanceUnits} away
-									</div>
-								</div>
-							</div>
-						{/each}
-					</section>
-				{/if}
-			</section>
 		</div>
 	</div>
-</main>
+
+	<!-- Result Container -->
+	<div class="block" id="main-results-section">
+		<section id="query-result-meta-section">
+			{#key `${selectedLocation?.name ?? 'none'}-${incidents.length}`}
+				<div class="meta-wrapper" out:slide={{ duration: 300 }}>
+					<div class="selected-location">
+						<div class="selected-location-info">
+							{#if selectedLocation}
+								<div class="meta-line">
+									<span class="meta-label">Location:</span>
+									<span class="location-name">{selectedLocation.name}</span>
+									<span class="location-coordinates">
+										({selectedLocation.longitude},
+										{selectedLocation.latitude})
+									</span>
+								</div>
+								<div class="meta-line">
+									<span class="meta-label">Incidents:</span>
+									{incidents.length}
+									within {maxDistance}
+									{distanceUnits}
+								</div>
+							{:else if databaseSummary.length > 0}
+								<div class="database-summary">
+									{#each databaseSummary as item}
+										<div class="meta-line" transition:slide={{ duration: 900 }}>
+											{item.count}
+											<span class="meta-label">{item.type}</span>
+										</div>
+									{/each}
+								</div>
+							{:else}{/if}
+						</div>
+					</div>
+				</div>
+			{/key}
+		</section>
+
+		<div class="details-container">
+			<section id="map-section">
+				<div id="map"></div>
+			</section>
+
+			<section id="selected-incident-detail-section">
+				<div class="selected-location">
+					<div class="selected-location-info">
+						{#if selectedIncident}
+							<div class="selected-incident-detail" transition:slide={{ duration: 250 }}>
+								{@html formatIncidentDetail(selectedIncident)}
+							</div>
+						{:else}
+							<div class="meta-line">Click an incident to view details here.</div>
+						{/if}
+					</div>
+				</div>
+			</section>
+		</div>
+
+		<section id="incidents-list-section">
+			{#if incidents.length > 0}
+				<section class="incidents-list">
+					{#each incidents as item, index}
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div onclick={() => showIncidentOnMap(index)} class="incident-record clickable-row">
+							<div class="incident-record-header">
+								<div class="marker">{@html markerIconHtml(index)}</div>
+								<div class="title">{item.title}</div>
+							</div>
+							<div class="incident-record-details">
+								<div class="incident-date" data-value={item.date}>
+									{item.date.toDateString()}
+
+									<em>
+										({currentAgeSimplified(item.date)})
+									</em>
+								</div>
+								<div class="incident-category">
+									{item.category}
+								</div>
+								<div class="incident-distance">
+									{prettifyInteger(item.distance as number)}
+									{distanceUnits} away
+								</div>
+							</div>
+						</div>
+					{/each}
+				</section>
+			{/if}
+		</section>
+	</div>
+</div>
 
 <style lang="postcss">
 	@reference "../../app.css";
@@ -374,9 +369,6 @@
 	}
 
 	.incidents-list {
-	}
-	.main-container {
-		@apply min-h-screen bg-gray-100 p-4 md:p-8 font-sans;
 	}
 
 	.container {

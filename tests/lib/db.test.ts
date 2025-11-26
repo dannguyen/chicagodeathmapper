@@ -6,7 +6,7 @@ import {
 	type DbInstance,
 	type DatabaseConnection
 } from '$lib/db';
-import type { Location } from '$lib/location';
+import { Location } from '$lib/location';
 
 // Mock $app/paths
 vi.mock('$app/paths', () => ({
@@ -81,14 +81,14 @@ describe('db', () => {
 	});
 
 	describe('queryNearestToLocation', () => {
-		const mockLocation: Location = {
+		const mockLocation: Location = new Location({
 			id: '1',
 			name: 'Test Loc',
 			latitude: 41.8,
 			longitude: -87.6,
 			category: 'intersection',
 			the_geom: 'POINT (-87, 41)'
-		};
+		});
 
 		const createMockConnection = (
 			overrides: Partial<DatabaseConnection> = {}

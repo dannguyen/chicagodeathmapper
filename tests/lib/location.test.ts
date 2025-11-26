@@ -1,5 +1,46 @@
 import { describe, it, expect } from 'vitest';
-import { filterLocationsBySearchString, type Location } from '$lib/location';
+import { filterLocationsBySearchString, Location } from '$lib/location';
+
+describe('Location class', () => {
+	const mockData = {
+		intersection: {
+			id: 'apple',
+			name: 'Apple',
+			category: 'intersection',
+			latitude: 40.1,
+			longitude: -80.2,
+			the_geom: 'SHAPE([])'
+		},
+
+		ward: {
+			id: 'banana',
+			name: 'Banana',
+			category: 'ward',
+			latitude: 40.1,
+			longitude: -80.2,
+			the_geom: 'SHAPE([])'
+		}
+	};
+
+	it('should have a constructor', () => {
+		const c: Location = new Location(mockData['intersection']);
+		expect(c.name).toBe('Apple');
+		expect(c.id).toBe('apple');
+		expect(typeof c.the_geom).toBe('string');
+	});
+
+	it('should not be a shape if intersection', () => {
+		const c: Location = new Location(mockData['intersection']);
+		expect(c.category).toBe('intersection');
+		expect(c.isShape).toBe(false);
+	});
+
+	it('should be a shape if NOT intersection', () => {
+		const c: Location = new Location(mockData['ward']);
+		expect(c.category).toBe('ward');
+		expect(c.isShape).toBe(true);
+	});
+});
 
 describe('filterLocationsBySearchString', () => {
 	const mockData: Location[] = [
@@ -59,7 +100,7 @@ describe('filterLocationsBySearchString', () => {
 			id: 'g',
 			the_geom: 'hello'
 		}
-	];
+	].map((d) => new Location(d));
 
 	it('should return matches based on all tokens', () => {
 		const results = filterLocationsBySearchString(mockData, 'State Lake');

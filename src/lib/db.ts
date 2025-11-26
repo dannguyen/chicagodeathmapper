@@ -1,6 +1,6 @@
 import initSqlite from '@sqlite.org/sqlite-wasm';
 import { resolve } from '$app/paths';
-import type { Location } from './location';
+import { Location } from './location';
 import { base, assets } from '$app/paths';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,7 +140,7 @@ export function queryLocationsByName(
 		rowMode: 'object'
 	});
 
-	return results as Location[];
+	return results.map((row: any) => new Location(row));
 }
 
 export function queryLocationById(conn: DatabaseConnection, id: string): Location | null {
@@ -157,7 +157,7 @@ export function queryLocationById(conn: DatabaseConnection, id: string): Locatio
 		rowMode: 'object'
 	});
 
-	return results.length > 0 ? (results[0] as Location) : null;
+	return results.length > 0 ? new Location(results[0]) : null;
 }
 
 export function queryNearestToLocation(
