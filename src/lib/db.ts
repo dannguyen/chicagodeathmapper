@@ -168,7 +168,7 @@ export function queryNearestToLocation(
 		sql: `
 		  SELECT *, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
           FROM incidents
-          ORDER BY distance ASC
+          ORDER BY crash_date desc
           LIMIT :limit
           ;
       `,

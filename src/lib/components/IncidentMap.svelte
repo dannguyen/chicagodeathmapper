@@ -3,6 +3,7 @@
 	import { slide } from 'svelte/transition';
 	import { resolve } from '$app/paths';
 	import { base, assets } from '$app/paths';
+	import {currentAgeSimplified , prettifyInteger} from '$lib/transformHelpers';
 
 	import { enumerateIncidents, type Incident } from '$lib/incident';
 
@@ -284,12 +285,16 @@
 								<div class="incident-record-details">
 									<div class="incident-date" data-value={item.date}>
 										{item.date.toDateString()}
+
+										<em>
+										({currentAgeSimplified(item.date)})
+										</em>
 									</div>
 									<div class="incident-category">
 										{item.category}
 									</div>
 									<div class="incident-distance">
-										{item.distance}
+										{prettifyInteger(item.distance as number)}
 										{distanceUnits} away
 									</div>
 								</div>
