@@ -86,7 +86,8 @@ describe('db', () => {
 			name: 'Test Loc',
 			latitude: 41.8,
 			longitude: -87.6,
-			category: 'intersection'
+			category: 'intersection',
+			the_geom: 'POINT (-87, 41)'
 		};
 
 		const createMockConnection = (

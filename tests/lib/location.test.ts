@@ -3,13 +3,62 @@ import { filterLocationsBySearchString, type Location } from '$lib/location';
 
 describe('filterLocationsBySearchString', () => {
 	const mockData: Location[] = [
-		{ category: 'placeholder', name: 'STATE & LAKE', latitude: 0, longitude: 0, id: 'aaa' },
-		{ category: 'intersection', name: 'STATE & MADISON', latitude: 0, longitude: 0, id: 'bb' },
-		{ category: 'intersection', name: 'MICHIGAN & LAKE', latitude: 0, longitude: 0, id: 'cc' },
-		{ category: 'intersection', name: 'CLARK & LAKE', latitude: 0, longitude: 0, id: 'd' },
-		{ category: 'intersection', name: 'W OHIO ST & LAKE', latitude: 0, longitude: 0, id: 'e' },
-		{ category: 'intersection', name: 'W OHIO ST & STATE', latitude: 0, longitude: 0, id: 'f' },
-		{ category: 'intersection', name: 'E OHIO ST & LAKE', latitude: 0, longitude: 0, id: 'g' }
+		{
+			category: 'placeholder',
+			name: 'STATE & LAKE',
+			latitude: 0,
+			longitude: 0,
+			id: 'aaa',
+			the_geom: 'hello'
+		},
+		{
+			category: 'intersection',
+			name: 'STATE & MADISON',
+			latitude: 0,
+			longitude: 0,
+			id: 'bb',
+			the_geom: 'hello'
+		},
+		{
+			category: 'intersection',
+			name: 'MICHIGAN & LAKE',
+			latitude: 0,
+			longitude: 0,
+			id: 'cc',
+			the_geom: 'hello'
+		},
+		{
+			category: 'intersection',
+			name: 'CLARK & LAKE',
+			latitude: 0,
+			longitude: 0,
+			id: 'd',
+			the_geom: 'hello'
+		},
+		{
+			category: 'intersection',
+			name: 'W OHIO ST & LAKE',
+			latitude: 0,
+			longitude: 0,
+			id: 'e',
+			the_geom: 'hello'
+		},
+		{
+			category: 'intersection',
+			name: 'W OHIO ST & STATE',
+			latitude: 0,
+			longitude: 0,
+			id: 'f',
+			the_geom: 'hello'
+		},
+		{
+			category: 'intersection',
+			name: 'E OHIO ST & LAKE',
+			latitude: 0,
+			longitude: 0,
+			id: 'g',
+			the_geom: 'hello'
+		}
 	];
 
 	it('should return matches based on all tokens', () => {

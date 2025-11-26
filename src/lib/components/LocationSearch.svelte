@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-    import { resolve } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	import { highlightFilteredText } from '$lib/inputHelpers';
 	import { type Location } from '$lib/location';
@@ -74,7 +74,7 @@
 		onSelect(location);
 		if (location.id) {
 			// TODO: use location.category instead of hardcoded intersection
-			goto(resolve(`/intersection/${location.id}`));
+			goto(resolve(`/${location.category}/${location.id}`));
 		}
 	}
 </script>

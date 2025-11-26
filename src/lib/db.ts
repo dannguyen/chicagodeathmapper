@@ -127,10 +127,14 @@ export function queryLocationsByName(
 
 	const results = conn.db.exec({
 		sql: `
-			SELECT name, category, latitude, longitude, id
+			SELECT name, category, latitude, longitude, id, the_geom
 			FROM locations
 			WHERE ${conditions}
+			ORDER BY
+				CASE WHEN category = 'intersection' THEN 'zzzz' ELSE category END ASC
 			LIMIT :limit
+			;
+
 		`,
 		bind,
 		rowMode: 'object'
@@ -144,7 +148,7 @@ export function queryLocationById(conn: DatabaseConnection, id: string): Locatio
 
 	const results = conn.db.exec({
 		sql: `
-			SELECT name, category, latitude, longitude, id
+			SELECT name, category, latitude, longitude, id, the_geom
 			FROM locations
 			WHERE id = :id
 			LIMIT 1
@@ -164,23 +168,59 @@ export function queryNearestToLocation(
 ): any[] {
 	if (!conn.db) return [];
 
-	const results: any[] = conn.db.exec({
-		sql: `
-		  SELECT *, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
-          FROM incidents
-          ORDER BY crash_date desc
-          LIMIT :limit
-          ;
-      `,
-		bind: {
-			':lat': location.latitude,
-			':lon': location.longitude,
-			':limit': limit
-		},
-		rowMode: 'object'
-	});
-	let filtered = results.filter((row) => {
-		return row.distance <= maxDistance;
-	});
+	let results: any[] = [];
+	let filtered: any[] = [];
+
+	if (location.category === 'intersection') {
+		results = conn.db.exec({
+			sql: `
+				SELECT *, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
+				FROM incidents
+				ORDER BY crash_date desc
+				LIMIT :limit
+				;`,
+			bind: {
+				':lat': location.latitude,
+				':lon': location.longitude,
+				':limit': limit
+			},
+			rowMode: 'object'
+		});
+		filtered = results.filter((row) => {
+			return row.distance <= maxDistance;
+		});
+	} else {
+		results = conn.db.exec({
+			// sql: `
+			// 	SELECT *, 0 AS disstance
+			// 	FROM incidents
+			// 	WHERE ST_Contains(
+			// 		:boundaries,
+			// 		MakePoint(:lon, :lat, 4326)
+			// 	)
+			// 	;`,
+			// bind: {
+			// 	':lat': location.latitude,
+			// 	':lon': location.longitude,
+			// 	':boundaries': location.the_geom
+			// },
+			sql: `
+				SELECT *, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
+				FROM incidents
+				ORDER BY crash_date desc
+				LIMIT :limit
+				;`,
+			bind: {
+				':lat': location.latitude,
+				':lon': location.longitude,
+				':limit': limit
+			},
+			rowMode: 'object'
+		});
+		// filtered = results;
+		filtered = results.filter((row) => {
+			return row.distance <= maxDistance;
+		});
+	}
 	return filtered;
 }

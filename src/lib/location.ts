@@ -6,7 +6,7 @@ export interface Location {
 	longitude: number;
 	latitude: number;
 	id: string;
-	the_geom?: string;
+	the_geom: string;
 }
 
 export function filterLocationsBySearchString(

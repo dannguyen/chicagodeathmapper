@@ -3,7 +3,8 @@
 	import { slide } from 'svelte/transition';
 	import { resolve } from '$app/paths';
 	import { base, assets } from '$app/paths';
-	import {currentAgeSimplified , prettifyInteger} from '$lib/transformHelpers';
+	import { currentAgeSimplified, prettifyInteger } from '$lib/transformHelpers';
+	import wellknown from 'wellknown';
 
 	import { enumerateIncidents, type Incident } from '$lib/incident';
 
@@ -32,7 +33,7 @@
 	let selectedIncident = $state<Incident | null>(null);
 
 	let map: any;
-	let marker: any;
+	let activeMarker: any = null;
 	let markerLayerGroup: any;
 	let incidentMarkers: any[] = [];
 	let L: any;
@@ -117,20 +118,71 @@
 		}).addTo(map);
 	}
 
+	function makePointMarker(location: Location) {
+		const mk = L.marker([location.latitude, location.longitude]).addTo(map);
+		mk.bindPopup(location.name).openPopup();
+		return mk;
+	}
+
+	function makeShapeMarker(location: Location) {
+		const geometry = wellknown.parse(location.the_geom); // { type: 'MultiPolygon', coordinates: [...] }
+		console.log(`its a ${location.category}`);
+		console.log(geometry);
+		const features = [
+			{
+				type: 'Feature',
+				geometry,
+				properties: {
+					id: location.id,
+					name: location.name,
+					category: location.category
+				}
+			}
+		];
+
+		const mk = L.geoJSON(
+			{
+				type: 'FeatureCollection',
+				features
+			},
+			{
+				style: () => ({
+					weight: 1,
+					color: '#3388ff',
+					fillOpacity: 0.2
+				}),
+				onEachFeature: (feature: Record<string, unknown>, layer: any) => {
+					const p = feature.properties as Record<string, unknown>;
+					if (p?.name) {
+						layer.bindPopup(p.name);
+					}
+				}
+			}
+		).addTo(map);
+
+		return mk;
+	}
+
+	function clearActiveLayer() {
+		if (activeMarker) {
+			map.removeLayer(activeMarker);
+			activeMarker = null;
+		}
+	}
+
 	function onLocationSelect(location: Location) {
 		selectedLocation = location;
 
 		// Update map
 		if (map) {
-			map.setView([location.latitude, location.longitude], 17);
+			clearActiveLayer();
+			map.setView([location.latitude, location.longitude], 16);
 
-			if (marker) {
-				marker.setLatLng([location.latitude, location.longitude]);
+			if (location.category === 'intersection') {
+				activeMarker = makePointMarker(location);
 			} else {
-				marker = L.marker([location.latitude, location.longitude]).addTo(map);
+				activeMarker = makeShapeMarker(location);
 			}
-
-			marker.bindPopup(location.name).openPopup();
 
 			findNearbyIncidents(location);
 		}
@@ -168,12 +220,12 @@
 	}
 
 	function showIncidentOnMap(index: number) {
-		const marker = incidentMarkers[index];
-		if (!marker || !map) return;
+		const mk = incidentMarkers[index];
+		if (!mk || !map) return;
 
 		setIncidentDetail(incidents[index]);
-		marker.openPopup();
-		map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15));
+		mk.openPopup();
+		map.setView(mk.getLatLng(), Math.max(map.getZoom(), 15));
 	}
 
 	// Fetch data on mount
@@ -287,7 +339,7 @@
 										{item.date.toDateString()}
 
 										<em>
-										({currentAgeSimplified(item.date)})
+											({currentAgeSimplified(item.date)})
 										</em>
 									</div>
 									<div class="incident-category">
