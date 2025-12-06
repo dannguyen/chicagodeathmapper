@@ -36,7 +36,7 @@
 	}
 
 	function findNearbyIncidents(location: Location) {
-		let results: Incident[] = queryNearestToLocation(database, location, maxDistance);
+		let results = queryNearestToLocation(database, location, maxDistance);
 		incidents = reifyIncidents(results);
 		setIncidentDetail(null); // Clear selected incident when new search occurs
 	}

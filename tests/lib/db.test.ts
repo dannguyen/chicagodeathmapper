@@ -118,8 +118,8 @@ describe('db', () => {
 			// Mock results from DB (already simulated distance calculation)
 			const dbResults = [
 				{ id: 1, distance: 100 },
-				{ id: 2, distance: 5000 },
-				{ id: 3, distance: 6000 } // Should be filtered out by default 5280
+				{ id: 2, distance: 5000 }
+				// { id: 3, distance: 6000 } // Excluded from mock to simulate SQL filtering
 			];
 
 			mockExec.mockReturnValue(dbResults);
@@ -131,7 +131,8 @@ describe('db', () => {
 					bind: {
 						':lat': mockLocation.latitude,
 						':lon': mockLocation.longitude,
-						':limit': maxLimit
+						':limit': maxLimit,
+						':maxDistance': 5280
 					}
 				})
 			);
@@ -147,9 +148,19 @@ describe('db', () => {
 			const mockExec = vi.fn();
 			const conn = createMockConnection({ db: { exec: mockExec } as unknown as DbInstance });
 
-			mockExec.mockReturnValue([{ distance: 100 }, { distance: 200 }]);
+			// Simulate DB filtering based on maxDistance=150
+			mockExec.mockReturnValue([{ distance: 100 }]);
 
 			const results = queryNearestToLocation(conn, mockLocation, 150);
+			
+			expect(mockExec).toHaveBeenCalledWith(
+				expect.objectContaining({
+					bind: expect.objectContaining({
+						':maxDistance': 150
+					})
+				})
+			);
+
 			expect(results).toHaveLength(1);
 			expect(results[0].distance).toBe(100);
 		});

@@ -166,7 +166,7 @@ export function queryNearestToLocation(
 	location: Location,
 	maxDistance: number = 5280,
 	limit: number = maxLimit
-): Incident[] {
+): any[] {
 	if (!conn.db) return [];
 
 	const results = conn.db.exec({
@@ -186,5 +186,5 @@ export function queryNearestToLocation(
 		rowMode: 'object'
 	});
 
-	return results.map((r: any) => new Incident(r)) as Incident[];
+	return results;
 }

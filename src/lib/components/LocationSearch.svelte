@@ -20,14 +20,17 @@
 	let searchQuery = $state<string>('');
 	let showAutocomplete = $state<boolean>(false);
 	let debounceTimer: ReturnType<typeof setTimeout>;
+	let selectedIndex = $state<number>(-1);
 
 	let locationResults = $state<Location[]>([]);
 
 	$effect(() => {
 		if (searchQuery.trim().length >= 2 && database.db) {
 			locationResults = queryLocationsByName(database, searchQuery);
+			selectedIndex = -1;
 		} else {
 			locationResults = [];
+			selectedIndex = -1;
 		}
 	});
 
@@ -60,10 +63,22 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && locationResults.length > 0) {
-			selectLocation(locationResults[0]);
+		if (locationResults.length === 0) return;
+
+		if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			selectedIndex = (selectedIndex + 1) % locationResults.length;
+		} else if (event.key === 'ArrowUp') {
+			event.preventDefault();
+			selectedIndex = (selectedIndex - 1 + locationResults.length) % locationResults.length;
+		} else if (event.key === 'Enter') {
+			event.preventDefault();
+			if (selectedIndex >= 0) {
+				selectLocation(locationResults[selectedIndex]);
+			} else {
+				selectLocation(locationResults[0]);
+			}
 			showAutocomplete = false; // Hide autocomplete after selection
-			event.preventDefault(); // Prevent form submission if input is part of a form
 		}
 	}
 
@@ -95,10 +110,15 @@
 
 	{#if showAutocomplete && locationResults.length > 0}
 		<div class="location-results-list">
-			{#each locationResults as result}
+			{#each locationResults as result, index}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div class="location-item" onclick={() => selectLocation(result)}>
+				<div
+					class="location-item"
+					class:selected={index === selectedIndex}
+					onclick={() => selectLocation(result)}
+					onmouseenter={() => (selectedIndex = index)}
+				>
 					{@html highlightFilteredText(result.name, searchQuery)}
 				</div>
 			{/each}
@@ -114,7 +134,12 @@
 	}
 
 	.location-results-list .location-item {
-		@apply p-3 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-0;
+		@apply p-3 cursor-pointer border-b border-gray-100 last:border-0;
+	}
+
+	.location-results-list .location-item:hover,
+	.location-results-list .location-item.selected {
+		@apply bg-gray-100;
 	}
 
 	#search-input-field {

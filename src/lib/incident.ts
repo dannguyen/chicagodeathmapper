@@ -7,37 +7,25 @@ export class Incident {
 	subcategory?: string;
 	distance?: number;
 
-	constructor(data: {
-		longitude: number;
-		latitude: number;
-		title: string;
-		date: Date;
-		category: string;
-		subcategory?: string;
-		distance?: number;
-	}) {
-		this.longitude = data.longitude;
-		this.latitude = data.latitude;
-		this.title = data.title;
-		this.date = data.date;
-		this.category = data.category;
-		this.subcategory = data.subcategory;
-		this.distance = data.distance;
+	// Constructor now takes raw database row
+	constructor(rawItem: any) {
+		this.longitude = rawItem.longitude;
+		this.latitude = rawItem.latitude;
+		// Construct title from raw fields, providing fallback for undefined values
+		this.title = `${rawItem.injuries_fatal ?? 'Unknown'} fatalities in ${rawItem.crash_type ?? 'Unknown'} on ${rawItem.street_no ?? ''} ${rawItem.street_direction ?? ''} ${rawItem.street_name ?? 'Unknown Street'}`;
+		// Parse date from raw field, ensuring it's a valid Date object
+		this.date = new Date(Date.parse(rawItem.crash_date));
+		this.category = rawItem.prim_contributory_cause ?? 'Unknown Category';
+		this.subcategory = rawItem.subcategory;
+		// Ensure distance is a number and handle undefined or null values
+		this.distance = rawItem.distance != null ? parseFloat(rawItem.distance.toFixed(0)) : undefined;
 	}
 }
 
 export function reifyIncidents(items: any[]): Incident[] {
 	let returnItems: Incident[] = [];
 	items.forEach((item) => {
-		const incidentData = {
-			longitude: item.longitude,
-			latitude: item.latitude,
-			title: `${item.injuries_fatal} fatalities in ${item.crash_type} on ${item.street_no} ${item.street_direction} ${item.street_name}`,
-			category: item.prim_contributory_cause,
-			distance: parseFloat(item.distance.toFixed(0)), // Ensure distance is a number
-			date: new Date(Date.parse(item.crash_date))
-		};
-		returnItems.push(new Incident(incidentData));
+		returnItems.push(new Incident(item)); // Pass raw item directly to constructor
 	});
 
 	return returnItems;

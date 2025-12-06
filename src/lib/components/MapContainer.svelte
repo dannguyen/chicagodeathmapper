@@ -114,7 +114,13 @@
 
 			if (!isNaN(lat) && !isNaN(lon)) {
 				const popupHtml = item.title;
-				const incidentMarker = L.marker([lat, lon]).bindPopup(popupHtml);
+				const icon = L.divIcon({
+					html: markerIconHtml(index),
+					className: '',
+					iconSize: [24, 24],
+					iconAnchor: [12, 12]
+				});
+				const incidentMarker = L.marker([lat, lon], { icon }).bindPopup(popupHtml);
 
 				incidentMarker.on('click', () => setIncidentDetail(item));
 
@@ -122,6 +128,21 @@
 				// incidentMarkers[index] = incidentMarker; // This needs to be managed externally
 			}
 		});
+
+		// After adding all markers, adjust map view to fit all markers and the selected location
+		if (items.length > 0 && selectedLocation) {
+			const latLngs: L.LatLngExpression[] = items.map((item) => [
+				item.latitude,
+				item.longitude
+			]);
+			latLngs.push([selectedLocation.latitude, selectedLocation.longitude]);
+
+			const bounds = L.latLngBounds(latLngs);
+			map.fitBounds(bounds, { padding: [50, 50] });
+		} else if (selectedLocation) {
+			// If no incidents but there's a selected location, just set view to the location
+			map.setView([selectedLocation.latitude, selectedLocation.longitude], 16);
+		}
 	}
 
 	$effect(() => {
