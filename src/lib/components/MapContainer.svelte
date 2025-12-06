@@ -4,15 +4,23 @@
 	import { Incident } from '$lib/incident';
 	import { Location } from '$lib/location';
 
-	let { selectedLocation, incidents, setIncidentDetail, defaultGeoCenter } = $props<{
+	let {
+		selectedLocation,
+		incidents,
+		setIncidentDetail,
+		defaultGeoCenter,
+		maxDistance = 5280
+	} = $props<{
 		selectedLocation: Location | null;
 		incidents: Incident[];
 		setIncidentDetail: (item: Incident | null) => void;
 		defaultGeoCenter: [number, number];
+		maxDistance?: number;
 	}>();
 
 	let map: any;
 	let activeMarker: any = null;
+	let radiusCircle: any = null;
 	let markerLayerGroup: any;
 	let L: any;
 
@@ -44,8 +52,6 @@
 
 	function makeShapeMarker(location: Location) {
 		const geometry = wellknown.parse(location.the_geom);
-		console.log(`its a ${location.category}`);
-		console.log(geometry);
 		const features = [
 			{
 				type: 'Feature',
@@ -88,6 +94,26 @@
 		}
 	}
 
+	function updateSearchRadius() {
+		if (radiusCircle) {
+			map.removeLayer(radiusCircle);
+			radiusCircle = null;
+		}
+
+		if (selectedLocation && map && L) {
+			// Convert feet to meters (1 ft = 0.3048 m)
+			const radiusInMeters = maxDistance * 0.3048;
+
+			radiusCircle = L.circle([selectedLocation.latitude, selectedLocation.longitude], {
+				color: '#3b82f6', // blue-500
+				fillColor: '#3b82f6',
+				fillOpacity: 0.1,
+				weight: 1,
+				radius: radiusInMeters
+			}).addTo(map);
+		}
+	}
+
 	export function updateMapWithLocation(location: Location) {
 		if (!map) return;
 
@@ -98,6 +124,7 @@
 			activeMarker = makeShapeMarker(location);
 		} else {
 			activeMarker = makePointMarker(location);
+			updateSearchRadius();
 		}
 		activeMarker.addTo(map);
 	}
@@ -131,10 +158,7 @@
 
 		// After adding all markers, adjust map view to fit all markers and the selected location
 		if (items.length > 0 && selectedLocation) {
-			const latLngs: L.LatLngExpression[] = items.map((item) => [
-				item.latitude,
-				item.longitude
-			]);
+			const latLngs: L.LatLngExpression[] = items.map((item) => [item.latitude, item.longitude]);
 			latLngs.push([selectedLocation.latitude, selectedLocation.longitude]);
 
 			const bounds = L.latLngBounds(latLngs);
@@ -148,6 +172,10 @@
 	$effect(() => {
 		if (selectedLocation) {
 			updateMapWithLocation(selectedLocation);
+			// Also update radius if maxDistance changes
+			if (selectedLocation.isPoint && maxDistance) {
+				updateSearchRadius();
+			}
 		}
 		if (incidents.length > 0) {
 			updateNearbyMarkers(incidents);

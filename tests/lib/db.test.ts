@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
 	maxLimit,
-	queryNearestToLocation,
+	queryIncidentsNearestToLocation,
 	registerGeospatialFunctions,
 	type DbInstance,
 	type DatabaseConnection
@@ -80,7 +80,7 @@ describe('db', () => {
 		});
 	});
 
-	describe('queryNearestToLocation', () => {
+	describe('queryIncidentsNearestToLocation', () => {
 		const mockLocation: Location = new Location({
 			id: '1',
 			name: 'Test Loc',
@@ -104,7 +104,7 @@ describe('db', () => {
 
 		it('should return empty array if db is null', () => {
 			const conn = createMockConnection({ db: null });
-			const results = queryNearestToLocation(conn, mockLocation);
+			const results = queryIncidentsNearestToLocation(conn, mockLocation);
 			expect(results).toEqual([]);
 		});
 
@@ -124,7 +124,7 @@ describe('db', () => {
 
 			mockExec.mockReturnValue(dbResults);
 
-			const results = queryNearestToLocation(conn, mockLocation);
+			const results = queryIncidentsNearestToLocation(conn, mockLocation);
 
 			expect(mockExec).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -151,8 +151,8 @@ describe('db', () => {
 			// Simulate DB filtering based on maxDistance=150
 			mockExec.mockReturnValue([{ distance: 100 }]);
 
-			const results = queryNearestToLocation(conn, mockLocation, 150);
-			
+			const results = queryIncidentsNearestToLocation(conn, mockLocation, 150);
+
 			expect(mockExec).toHaveBeenCalledWith(
 				expect.objectContaining({
 					bind: expect.objectContaining({

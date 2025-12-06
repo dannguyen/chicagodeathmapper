@@ -7,7 +7,12 @@
 	import { reifyIncidents, Incident } from '$lib/incident';
 	import { Location } from '$lib/location';
 
-	import { queryNearestToLocation, queryLocationById, DatabaseConnection } from '$lib/db';
+	import {
+		queryIncidentsNearestToLocation,
+		queryIncidentsInsideLocation,
+		queryLocationById,
+		DatabaseConnection
+	} from '$lib/db';
 	import LocationSearch from '$lib/components/LocationSearch.svelte';
 	import IncidentList from '$lib/components/IncidentList.svelte';
 	import IncidentDetail from '$lib/components/IncidentDetail.svelte';
@@ -36,7 +41,12 @@
 	}
 
 	function findNearbyIncidents(location: Location) {
-		let results = queryNearestToLocation(database, location, maxDistance);
+		let results: Incident[];
+		if (location.isShape) {
+			results = queryIncidentsInsideLocation(database, location);
+		} else {
+			results = queryIncidentsNearestToLocation(database, location);
+		}
 		incidents = reifyIncidents(results);
 		setIncidentDetail(null); // Clear selected incident when new search occurs
 	}
@@ -131,8 +141,12 @@
 								<div class="meta-line">
 									<span class="meta-label">Incidents:</span>
 									{incidents.length}
-									within {maxDistance}
-									{distanceUnits}
+									within
+									{#if selectedLocation.isPoint}
+										{maxDistance} {distanceUnits}
+									{:else}
+										{selectedLocation.name}
+									{/if}
 								</div>
 							{:else if databaseSummary.length > 0}
 								<div class="database-summary">
@@ -152,7 +166,13 @@
 
 		<div class="details-container">
 			<section id="map-section">
-				<MapContainer {selectedLocation} {incidents} {setIncidentDetail} {defaultGeoCenter} />
+				<MapContainer
+					{selectedLocation}
+					{incidents}
+					{setIncidentDetail}
+					{defaultGeoCenter}
+					{maxDistance}
+				/>
 			</section>
 
 			<IncidentDetail {selectedIncident} />

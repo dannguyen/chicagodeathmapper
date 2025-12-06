@@ -33,12 +33,14 @@ describe('Location class', () => {
 		const c: Location = new Location(mockData['intersection']);
 		expect(c.category).toBe('intersection');
 		expect(c.isShape).toBe(false);
+		expect(c.isPoint).toBe(true);
 	});
 
 	it('should be a shape if NOT intersection', () => {
 		const c: Location = new Location(mockData['ward']);
 		expect(c.category).toBe('ward');
 		expect(c.isShape).toBe(true);
+		expect(c.isPoint).toBe(false);
 	});
 });
 

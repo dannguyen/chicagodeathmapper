@@ -10,6 +10,9 @@ export class Location {
 	get isShape(): boolean {
 		return this.category !== 'intersection';
 	}
+	get isPoint(): boolean {
+		return this.category === 'intersection';
+	}
 
 	constructor(data: {
 		name: string;

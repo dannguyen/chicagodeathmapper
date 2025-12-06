@@ -88,7 +88,6 @@
 		showAutocomplete = false;
 		onSelect(location);
 		if (location.id) {
-			// TODO: use location.category instead of hardcoded intersection
 			goto(resolve(`/${location.category}/${location.id}`));
 		}
 	}
