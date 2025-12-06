@@ -25,7 +25,7 @@
 	let locationResults = $state<Location[]>([]);
 
 	$effect(() => {
-		if (searchQuery.trim().length >= 2 && database.db) {
+		if (searchQuery.trim().length >= 1 && database.db) {
 			locationResults = queryLocationsByName(database, searchQuery);
 			selectedIndex = -1;
 		} else {

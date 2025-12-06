@@ -97,103 +97,89 @@
 	});
 </script>
 
-<div class="container">
-	<h1>
-		<a href={resolve('/')}> Chicago Death Mapper </a>
-	</h1>
+<div class="input-row">
+	<!-- Search Container -->
+	<LocationSearch {database} onSelect={onLocationSelect} locationName={selectedLocation?.name} />
 
-	<div class="input-row">
-		<!-- Search Container -->
-		<LocationSearch {database} onSelect={onLocationSelect} locationName={selectedLocation?.name} />
-
-		<!-- Max Distance Input -->
-		<div class="max-distance-container">
-			<label for="maxDistance" class="block text-sm font-medium text-gray-700"
-				>Max Distance (feet):</label
-			>
-			<input
-				type="number"
-				id="maxDistance"
-				bind:value={maxDistance}
-				min="1"
-				oninput={handleMaxDistanceChange}
-				class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-			/>
-		</div>
+	<!-- Max Distance Input -->
+	<div class="max-distance-container">
+		<label for="maxDistance" class="block text-sm font-medium text-gray-700"
+			>Max Distance (feet):</label
+		>
+		<input
+			type="number"
+			id="maxDistance"
+			bind:value={maxDistance}
+			min="1"
+			oninput={handleMaxDistanceChange}
+			class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+		/>
 	</div>
+</div>
 
-	<!-- Result Container -->
-	<div class="block" id="main-results-section">
-		<section id="query-result-meta-section">
-			{#key `${selectedLocation?.name ?? 'none'}-${incidents.length}`}
-				<div class="meta-wrapper" out:slide={{ duration: 300 }}>
-					<div class="selected-location">
-						<div class="selected-location-info">
-							{#if selectedLocation}
-								<div class="meta-line">
-									<span class="meta-label">Location:</span>
-									<span class="location-name">{selectedLocation.name}</span>
-									<span class="location-coordinates">
-										({selectedLocation.longitude},
-										{selectedLocation.latitude})
-									</span>
-								</div>
-								<div class="meta-line">
-									<span class="meta-label">Incidents:</span>
-									{incidents.length}
-									within
-									{#if selectedLocation.isPoint}
-										{maxDistance} {distanceUnits}
-									{:else}
-										{selectedLocation.name}
-									{/if}
-								</div>
-							{:else if databaseSummary.length > 0}
-								<div class="database-summary">
-									{#each databaseSummary as item}
-										<div class="meta-line" transition:slide={{ duration: 900 }}>
-											{item.count}
-											<span class="meta-label">{item.type}</span>
-										</div>
-									{/each}
-								</div>
-							{:else}{/if}
-						</div>
+<!-- Result Container -->
+<div class="block" id="main-results-section">
+	<section id="query-result-meta-section">
+		{#key `${selectedLocation?.name ?? 'none'}-${incidents.length}`}
+			<div class="meta-wrapper" out:slide={{ duration: 300 }}>
+				<div class="selected-location">
+					<div class="selected-location-info">
+						{#if selectedLocation}
+							<div class="meta-line">
+								<span class="meta-label">Location:</span>
+								<span class="location-name">{selectedLocation.name}</span>
+								<span class="location-coordinates">
+									({selectedLocation.longitude},
+									{selectedLocation.latitude})
+								</span>
+							</div>
+							<div class="meta-line">
+								<span class="meta-label">Incidents:</span>
+								{incidents.length}
+								within
+								{#if selectedLocation.isPoint}
+									{maxDistance} {distanceUnits}
+								{:else}
+									{selectedLocation.name}
+								{/if}
+							</div>
+						{:else if databaseSummary.length > 0}
+							<div class="database-summary">
+								{#each databaseSummary as item}
+									<div class="meta-line" transition:slide={{ duration: 900 }}>
+										{item.count}
+										<span class="meta-label">{item.type}</span>
+									</div>
+								{/each}
+							</div>
+						{:else}{/if}
 					</div>
 				</div>
-			{/key}
+			</div>
+		{/key}
+	</section>
+
+	<div class="details-container">
+		<section id="map-section">
+			<MapContainer
+				{selectedLocation}
+				{incidents}
+				{setIncidentDetail}
+				{defaultGeoCenter}
+				{maxDistance}
+			/>
 		</section>
 
-		<div class="details-container">
-			<section id="map-section">
-				<MapContainer
-					{selectedLocation}
-					{incidents}
-					{setIncidentDetail}
-					{defaultGeoCenter}
-					{maxDistance}
-				/>
-			</section>
-
-			<IncidentDetail {selectedIncident} />
-		</div>
-
-		<section id="incidents-list-section">
-			<IncidentList {incidents} {distanceUnits} {showIncidentOnMap} />
-		</section>
+		<IncidentDetail {selectedIncident} />
 	</div>
+
+	<section id="incidents-list-section">
+		<IncidentList {incidents} {distanceUnits} {showIncidentOnMap} />
+	</section>
 </div>
 
 <style lang="postcss">
 	@reference "../../app.css";
-
-	h1 {
-		@apply text-3xl font-bold text-center text-gray-800 mb-6;
-	}
-
-	.container {
-		@apply max-w-5xl mx-auto bg-white rounded-lg shadow-md p-6;
-	}
 
 	.input-row {
 		@apply flex flex-col gap-4 md:flex-row md:items-end mb-6;
