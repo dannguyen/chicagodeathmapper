@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { slide } from 'svelte/transition';
 	import { currentAgeSimplified, prettifyInteger } from '$lib/transformHelpers';
 	import { Incident } from '$lib/incident';
+	import type { Location } from '$lib/location';
 
-	let { incidents, distanceUnits, showIncidentOnMap } = $props<{
+	let { incidents, selectedLocation, distanceUnits, showIncidentOnMap } = $props<{
 		incidents: Incident[];
+		selectedLocation: Location | null;
 		distanceUnits: string;
 		showIncidentOnMap: (index: number) => void;
 	}>();
@@ -36,10 +37,12 @@
 					<div class="incident-category">
 						{item.category}
 					</div>
-					<div class="incident-distance">
-						{prettifyInteger(item.distance as number)}
-						{distanceUnits} away
-					</div>
+					{#if selectedLocation.isPoint}
+						<div class="incident-distance">
+							{prettifyInteger(item.distance as number)}
+							{distanceUnits} away
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/each}

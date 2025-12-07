@@ -11,7 +11,7 @@
 		onSelect,
 		locationName = ''
 	} = $props<{
-		database: DatabaseConnection;
+		database: DatabaseConnection | null;
 		onSelect: (loc: Location) => void;
 		locationName?: string;
 	}>();

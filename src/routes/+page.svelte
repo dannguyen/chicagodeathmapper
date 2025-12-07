@@ -1,5 +1,5 @@
 <script lang="ts">
-	import IncidentMap from '$lib/components/IncidentMap.svelte';
+	import Dashboard from '$lib/components/Dashboard.svelte';
 </script>
 
-<IncidentMap />
+<Dashboard />

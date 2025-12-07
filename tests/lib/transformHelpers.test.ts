@@ -91,8 +91,8 @@ describe('transformHelpers', () => {
 		});
 
 		it('should return days ago for 2-60 days', () => {
-			expect(currentAgeSimplified(2)).toBe('2 ago');
-			expect(currentAgeSimplified(59)).toBe('59 ago');
+			expect(currentAgeSimplified(2)).toBe('2 days ago');
+			expect(currentAgeSimplified(59)).toBe('59 days ago');
 		});
 
 		it('should return months ago for > 60 days', () => {

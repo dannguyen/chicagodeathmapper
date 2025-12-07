@@ -74,7 +74,7 @@ export function currentAgeSimplified(dayVal: number | Date): string {
 	} else if (days > 60) {
 		return `${Math.floor(days / 30)} months ago`;
 	} else {
-		return `${days} ago`;
+		return `${days} days ago`;
 	}
 }
 

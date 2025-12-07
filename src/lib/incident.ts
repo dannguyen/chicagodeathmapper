@@ -1,3 +1,5 @@
+import type { IncidentRecord } from '$lib/db';
+
 export class Incident {
 	longitude: number;
 	latitude: number;
@@ -8,7 +10,7 @@ export class Incident {
 	distance?: number;
 
 	// Constructor now takes raw database row
-	constructor(record: any) {
+	constructor(record: IncidentRecord) {
 		this.longitude = record.longitude;
 		this.latitude = record.latitude;
 		// Construct title from raw fields, providing fallback for undefined values
@@ -19,17 +21,12 @@ export class Incident {
 			`${record.street_name ?? 'Unknown Street'}`;
 		this.date = new Date(Date.parse(record.crash_date));
 		this.category = record.prim_contributory_cause ?? 'Unknown Category';
-		this.subcategory = record.subcategory;
+		this.subcategory = record.subcategory ?? undefined;
 		// Ensure distance is a number and handle undefined or null values
 		this.distance = record.distance != null ? parseFloat(record.distance.toFixed(0)) : undefined;
 	}
 }
 
-export function reifyIncidents(items: any[]): Incident[] {
-	let returnItems: Incident[] = [];
-	items.forEach((item) => {
-		returnItems.push(new Incident(item));
-	});
-
-	return returnItems;
+export function reifyIncidents(items: IncidentRecord[]): Incident[] {
+	return items.map((item) => new Incident(item));
 }

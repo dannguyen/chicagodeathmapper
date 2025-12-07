@@ -8,6 +8,29 @@ import { base, assets } from '$app/paths';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DbInstance = any;
 
+export interface LocationRecord {
+	name: string;
+	category: string;
+	latitude: number;
+	longitude: number;
+	id: string;
+	the_geom: string;
+}
+
+export interface IncidentRecord {
+	longitude: number;
+	latitude: number;
+	injuries_fatal?: string;
+	crash_type?: string;
+	street_no?: string;
+	street_direction?: string;
+	street_name?: string;
+	crash_date: string;
+	prim_contributory_cause?: string;
+	subcategory?: string;
+	distance?: number;
+}
+
 export const maxLimit: number = 1000;
 
 export class DatabaseConnection {
@@ -244,7 +267,7 @@ export function queryLocationsByName(
 		rowMode: 'object'
 	});
 
-	return results.map((row: any) => new Location(row));
+	return (results as LocationRecord[]).map((row) => new Location(row));
 }
 
 export function queryLocationById(conn: DatabaseConnection, id: string): Location | null {
@@ -261,7 +284,7 @@ export function queryLocationById(conn: DatabaseConnection, id: string): Locatio
 		rowMode: 'object'
 	});
 
-	return results.length > 0 ? new Location(results[0]) : null;
+	return results.length > 0 ? new Location(results[0] as LocationRecord) : null;
 }
 
 export function queryIncidentsNearestToLocation(
@@ -269,7 +292,7 @@ export function queryIncidentsNearestToLocation(
 	location: Location,
 	maxDistance: number = 5280,
 	limit: number = maxLimit
-): any[] {
+): IncidentRecord[] {
 	if (!conn.db) return [];
 
 	const results = conn.db.exec({
@@ -290,14 +313,14 @@ export function queryIncidentsNearestToLocation(
 		rowMode: 'object'
 	});
 
-	return results;
+	return results as IncidentRecord[];
 }
 
 export function queryIncidentsInsideLocation(
 	conn: DatabaseConnection,
 	location: Location,
 	limit: number = maxLimit
-): any[] {
+): IncidentRecord[] {
 	if (!conn.db) return [];
 	const results = conn.db.exec({
 		sql: `
@@ -319,5 +342,5 @@ export function queryIncidentsInsideLocation(
 		rowMode: 'object'
 	});
 
-	return results;
+	return results as IncidentRecord[];
 }

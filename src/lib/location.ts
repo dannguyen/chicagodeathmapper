@@ -1,4 +1,5 @@
 import { getSearchTokens } from '$lib/inputHelpers';
+import type { LocationRecord } from '$lib/db';
 
 export class Location {
 	name: string;
@@ -14,14 +15,7 @@ export class Location {
 		return this.category === 'intersection';
 	}
 
-	constructor(data: {
-		name: string;
-		category: string;
-		longitude: number;
-		latitude: number;
-		id: string;
-		the_geom: string;
-	}) {
+	constructor(data: LocationRecord) {
 		this.name = data.name;
 		this.category = data.category;
 		this.longitude = data.longitude;
