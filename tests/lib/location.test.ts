@@ -19,6 +19,15 @@ describe('Location class', () => {
 			latitude: 40.1,
 			longitude: -80.2,
 			the_geom: 'SHAPE([])'
+		},
+
+		neighborhood: {
+			id: 'cherry',
+			name: 'Cherryville',
+			category: 'neighborhood',
+			latitude: 40.3,
+			longitude: -80.4,
+			the_geom: 'SHAPE([])'
 		}
 	};
 
@@ -41,6 +50,17 @@ describe('Location class', () => {
 		expect(c.category).toBe('ward');
 		expect(c.isShape).toBe(true);
 		expect(c.isPoint).toBe(false);
+	});
+
+	it('should return the plural form of the category', () => {
+		const intersection = new Location(mockData.intersection);
+		expect(intersection.pluralCategory).toBe('intersections');
+
+		const ward = new Location(mockData.ward);
+		expect(ward.pluralCategory).toBe('wards');
+
+		const neighborhood = new Location(mockData.neighborhood);
+		expect(neighborhood.pluralCategory).toBe('neighborhoods');
 	});
 });
 

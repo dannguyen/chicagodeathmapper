@@ -2,9 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import {
 	maxLimit,
 	queryIncidentsNearestToLocation,
+	queryLocationsByCategory,
 	registerGeospatialFunctions,
 	type DbInstance,
-	type DatabaseConnection
+	type DatabaseConnection,
+	type LocationRecord
 } from '$lib/db';
 import { Location } from '$lib/location';
 
@@ -163,6 +165,70 @@ describe('db', () => {
 
 			expect(results).toHaveLength(1);
 			expect(results[0].distance).toBe(100);
+		});
+	});
+
+	describe('queryLocationsByCategory', () => {
+		const createMockConnection = (
+			overrides: Partial<DatabaseConnection> = {}
+		): DatabaseConnection => {
+			return {
+				db: null,
+				url: 'mock-url',
+				init: vi.fn(),
+				getDatabaseSummary: vi.fn(),
+				...overrides
+			};
+		};
+
+		it('should return empty array if db is null', () => {
+			const conn = createMockConnection({ db: null });
+			const results = queryLocationsByCategory(conn, 'neighborhood');
+			expect(results).toEqual([]);
+		});
+
+		it('should execute SQL with correct parameters and sorting', () => {
+			const mockExec = vi.fn();
+			const mockDb = {
+				exec: mockExec
+			} as unknown as DbInstance;
+			const conn = createMockConnection({ db: mockDb });
+
+			const dbResults: LocationRecord[] = [
+				{
+					name: 'A',
+					category: 'neighborhood',
+					id: '1',
+					latitude: 0,
+					longitude: 0,
+					the_geom: ''
+				},
+				{
+					name: 'B',
+					category: 'neighborhood',
+					id: '2',
+					latitude: 0,
+					longitude: 0,
+					the_geom: ''
+				}
+			];
+			mockExec.mockReturnValue(dbResults);
+
+			const results = queryLocationsByCategory(conn, 'neighborhood');
+
+			expect(mockExec).toHaveBeenCalledWith(
+				expect.objectContaining({
+					sql: expect.stringContaining('ORDER BY name ASC'),
+					bind: {
+						':category': 'neighborhood'
+					}
+				})
+			);
+
+			expect(results).toHaveLength(2);
+			expect(results[0].name).toBe('A');
+			expect(results[1].name).toBe('B');
+			expect(results[0]).toBeInstanceOf(Location);
 		});
 	});
 });

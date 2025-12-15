@@ -287,6 +287,23 @@ export function queryLocationById(conn: DatabaseConnection, id: string): Locatio
 	return results.length > 0 ? new Location(results[0] as LocationRecord) : null;
 }
 
+export function queryLocationsByCategory(conn: DatabaseConnection, category: string): Location[] {
+	if (!conn.db) return [];
+
+	const results = conn.db.exec({
+		sql: `
+			SELECT name, category, latitude, longitude, id, the_geom
+			FROM locations
+			WHERE category = :category
+			ORDER BY name ASC
+		`,
+		bind: { ':category': category },
+		rowMode: 'object'
+	});
+
+	return (results as LocationRecord[]).map((row) => new Location(row));
+}
+
 export function queryIncidentsNearestToLocation(
 	conn: DatabaseConnection,
 	location: Location,
@@ -314,6 +331,213 @@ export function queryIncidentsNearestToLocation(
 	});
 
 	return results as IncidentRecord[];
+}
+
+export interface NeighborhoodStat {
+	id: string;
+	name: string;
+	totalIncidents: number;
+	mostRecent: string | null;
+	avgPerYear: number;
+}
+
+export function getAllNeighborhoodStats(conn: DatabaseConnection): NeighborhoodStat[] {
+	if (!conn.db) return [];
+
+	// 1. Get all neighborhoods
+	const neighborhoods = conn.db.exec({
+		sql: `SELECT id, name, the_geom FROM locations WHERE category = 'neighborhood'`,
+		rowMode: 'object'
+	}) as LocationRecord[];
+
+	// 2. Get all incidents
+	const incidents = conn.db.exec({
+		sql: `SELECT crash_date, latitude, longitude FROM incidents`,
+		rowMode: 'object'
+	}) as IncidentRecord[];
+
+	// 3. Prepare neighborhoods with parsed geometries
+	const hoodStats = neighborhoods.map((hood) => {
+		let geom = null;
+		try {
+			geom = wellknown.parse(hood.the_geom);
+		} catch (e) {
+			console.warn(`Failed to parse geometry for ${hood.name}`, e);
+		}
+		return {
+			...hood,
+			geom,
+			count: 0,
+			dates: [] as number[] // timestamps
+		};
+	});
+
+	// 4. Spatial join
+	for (const incident of incidents) {
+		const lat = incident.latitude;
+		const lon = incident.longitude;
+		const date = new Date(incident.crash_date).getTime();
+
+		for (const hood of hoodStats) {
+			if (!hood.geom) continue;
+
+			let inside = false;
+			// Simple point in polygon check
+			if (hood.geom.type === 'Polygon') {
+				inside = pointInPolygon([lon, lat], hood.geom.coordinates);
+			} else if (hood.geom.type === 'MultiPolygon') {
+				inside = pointInMultiPolygon([lon, lat], hood.geom.coordinates);
+			}
+
+			if (inside) {
+				hood.count++;
+				hood.dates.push(date);
+				// optimization: an incident is likely in only one neighborhood
+				// but strictly speaking, polygons could overlap.
+				// For neighborhoods, they usually don't.
+				// We can break here if we assume disjoint neighborhoods for performance
+				break;
+			}
+		}
+	}
+
+	// 5. Aggregate
+	return hoodStats.map((hood) => {
+		let mostRecent = null;
+		let avgPerYear = 0;
+
+		if (hood.count > 0) {
+			const dates = hood.dates.sort((a, b) => a - b);
+			mostRecent = new Date(dates[dates.length - 1]).toISOString().split('T')[0];
+
+			const minDate = new Date(dates[0]);
+			const maxDate = new Date(dates[dates.length - 1]);
+			const yearSpan = maxDate.getFullYear() - minDate.getFullYear();
+			// If incidents span less than a year (e.g. same year), divide by 1?
+			// Or maybe divide by exact time difference?
+			// Request said "Incidents/Year Avg".
+			// Let's use (count) / (yearSpan + 1) to avoid division by zero and handle single year.
+			// Or if yearSpan is 0, it's count/1.
+			avgPerYear = hood.count / (yearSpan + 1);
+		}
+
+		return {
+			id: hood.id,
+			name: hood.name,
+			totalIncidents: hood.count,
+			mostRecent,
+			avgPerYear
+		};
+	});
+}
+
+export interface IntersectionStat {
+	id: string;
+	name: string;
+	count?: number;
+	mostRecentDate?: string;
+	distance?: number;
+}
+
+// Helper to calculate distance in feet between two lat/lon points
+function getDistanceInFeet(lat1: number, lon1: number, lat2: number, lon2: number): number {
+	const R = 3.28084 * 6371e3; // feet
+	const toRad = (x: number) => (x * Math.PI) / 180;
+	const φ1 = toRad(lat1);
+	const φ2 = toRad(lat2);
+	const Δφ = toRad(lat2 - lat1);
+	const Δλ = toRad(lon2 - lon1);
+
+	const a =
+		Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+		Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+	return R * c;
+}
+
+export function getTopIntersectionsByIncidentCount(conn: DatabaseConnection): IntersectionStat[] {
+	if (!conn.db) return [];
+
+	// 1. Get all intersections
+	const intersections = conn.db.exec({
+		sql: `SELECT id, name, latitude, longitude FROM locations WHERE category = 'intersection'`,
+		rowMode: 'object'
+	}) as LocationRecord[];
+
+	// 2. Get all incidents
+	const incidents = conn.db.exec({
+		sql: `SELECT latitude, longitude FROM incidents`,
+		rowMode: 'object'
+	}) as IncidentRecord[];
+
+	// 3. Brute force spatial join (optimized for JS)
+	// For each intersection, count incidents within 500 feet
+	const stats = intersections.map((loc) => {
+		let count = 0;
+		for (const inc of incidents) {
+			const d = getDistanceInFeet(loc.latitude, loc.longitude, inc.latitude, inc.longitude);
+			if (d <= 500) {
+				count++;
+			}
+		}
+		return {
+			id: loc.id,
+			name: loc.name,
+			count
+		};
+	});
+
+	// 4. Sort and take top 10
+	return stats.sort((a, b) => b.count - a.count).slice(0, 10);
+}
+
+export function getTopIntersectionsByRecentIncidents(conn: DatabaseConnection): IntersectionStat[] {
+	if (!conn.db) return [];
+
+	// 1. Get recent incidents (fetch more than 10 to account for duplicates or no match)
+	const recentIncidents = conn.db.exec({
+		sql: `SELECT latitude, longitude, crash_date FROM incidents ORDER BY crash_date DESC LIMIT 50`,
+		rowMode: 'object'
+	}) as IncidentRecord[];
+
+	// 2. Get all intersections (caching this in memory would be better if called often,
+	// but for a page load it's fine)
+	const intersections = conn.db.exec({
+		sql: `SELECT id, name, latitude, longitude FROM locations WHERE category = 'intersection'`,
+		rowMode: 'object'
+	}) as LocationRecord[];
+
+	const results: IntersectionStat[] = [];
+	const seenIds = new Set<string>();
+
+	for (const inc of recentIncidents) {
+		if (results.length >= 10) break;
+
+		// Find nearest intersection within threshold (e.g. 200 feet)
+		let nearest: LocationRecord | null = null;
+		let minDist = Infinity;
+
+		for (const loc of intersections) {
+			const d = getDistanceInFeet(inc.latitude, inc.longitude, loc.latitude, loc.longitude);
+			if (d < minDist && d <= 200) {
+				minDist = d;
+				nearest = loc;
+			}
+		}
+
+		if (nearest && !seenIds.has(nearest.id)) {
+			seenIds.add(nearest.id);
+			results.push({
+				id: nearest.id,
+				name: nearest.name,
+				mostRecentDate: new Date(inc.crash_date).toISOString().split('T')[0],
+				distance: Math.round(minDist)
+			});
+		}
+	}
+
+	return results;
 }
 
 export function queryIncidentsInsideLocation(

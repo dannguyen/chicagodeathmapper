@@ -88,7 +88,7 @@
 		showAutocomplete = false;
 		onSelect(location);
 		if (location.id) {
-			goto(resolve(`/${location.category}/${location.id}`));
+			goto(resolve(`/${location.pluralCategory}/${location.id}`));
 		}
 	}
 </script>

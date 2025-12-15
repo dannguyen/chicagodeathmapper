@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import '../app.css';
 	import '$lib/vendor/fontawesome.js';
 	import { dev } from '$app/environment';
+	import SiteHeader from '$lib/components/SiteHeader.svelte';
+	import SiteFooter from '$lib/components/SiteFooter.svelte';
 
 	let envClass = dev ? 'env-dev' : 'env-prod';
 </script>
 
 <main class="main-container {envClass}">
 	<div class="container">
-		<h1>
-			<a href={resolve('/')}> Chicago Death Mapper </a>
-		</h1>
+		<SiteHeader />
 		<slot />
+		<SiteFooter />
 	</div>
 </main>
 
@@ -25,10 +25,6 @@
 
 	.main-container.env-dev {
 		@apply bg-yellow-300;
-	}
-
-	h1 {
-		@apply text-3xl font-bold text-center text-gray-800 mb-6;
 	}
 
 	.container {

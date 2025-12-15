@@ -15,6 +15,10 @@ export class Location {
 		return this.category === 'intersection';
 	}
 
+	get pluralCategory(): string {
+		return `${this.category}s`;
+	}
+
 	constructor(data: LocationRecord) {
 		this.name = data.name;
 		this.category = data.category;
