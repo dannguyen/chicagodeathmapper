@@ -15,3 +15,16 @@ test('location page initializes map layers on first visit', async ({ page }) => 
 		.first();
 	await expect(overlayPath).toBeVisible();
 });
+
+test('deep link initializes database and map', async ({ page, context }) => {
+	await page.goto('/neighborhoods');
+	const firstLocationLink = page.locator('table tbody tr a').first();
+	const href = await firstLocationLink.getAttribute('href');
+	expect(href).toBeTruthy();
+
+	const newPage = await context.newPage();
+	await newPage.goto(href as string);
+
+	await expect(newPage.locator('#map.leaflet-container')).toBeVisible();
+	await expect(newPage.getByText(/Database not initialized/i)).toHaveCount(0);
+});

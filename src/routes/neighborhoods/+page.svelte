@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { assets, base } from '$app/paths';
-	import { DatabaseConnection, getAllNeighborhoodStats, type NeighborhoodStat } from '$lib/db';
+	import { base } from '$app/paths';
+	import { ensureDatabase } from '$lib/appInit';
+	import { getAllNeighborhoodStats, type NeighborhoodStat } from '$lib/db';
 	import { appState } from '$lib/components/AppState.svelte';
 
 	let stats: NeighborhoodStat[] = $state([]);
@@ -15,13 +16,7 @@
 
 	onMount(async () => {
 		try {
-			let db = appState.database;
-			if (!db) {
-				const databasePath = `${assets}/database.sqlite`;
-				db = new DatabaseConnection(databasePath);
-				await db.init();
-				appState.database = db;
-			}
+			const db = await ensureDatabase();
 			// This might take a moment, so we keep loading true
 			// We could use a worker in a real heavy app, but main thread is likely fine for < 5000 incidents
 			setTimeout(() => {

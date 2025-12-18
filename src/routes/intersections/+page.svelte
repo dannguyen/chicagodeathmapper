@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { assets, base } from '$app/paths';
+	import { base } from '$app/paths';
+	import { ensureDatabase } from '$lib/appInit';
 	import {
-		DatabaseConnection,
 		getTopIntersectionsByIncidentCount,
 		getTopIntersectionsByRecentIncidents,
 		type IntersectionStat
@@ -16,13 +16,7 @@
 
 	onMount(async () => {
 		try {
-			let db = appState.database;
-			if (!db) {
-				const databasePath = `${assets}/database.sqlite`;
-				db = new DatabaseConnection(databasePath);
-				await db.init();
-				appState.database = db;
-			}
+			const db = await ensureDatabase();
 
 			// Run calculations
 			// Use setTimeout to allow UI to render loading state before heavy JS loop
