@@ -25,6 +25,15 @@ export class Incident {
 		// Ensure distance is a number and handle undefined or null values
 		this.distance = record.distance != null ? parseFloat(record.distance.toFixed(0)) : undefined;
 	}
+
+	get prettyDate(): string {
+		return this.date.toLocaleDateString('en-US', {
+			weekday: 'long',
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric'
+		});
+	}
 }
 
 export function reifyIncidents(items: IncidentRecord[]): Incident[] {

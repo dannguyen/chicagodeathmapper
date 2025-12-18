@@ -135,7 +135,10 @@
 			/>
 		</section>
 
-		<IncidentDetail selectedIncident={appState.selectedIncident} />
+		<IncidentDetail
+			selectedIncident={appState.selectedIncident}
+			selectedLocation={appState.selectedLocation}
+		/>
 	</div>
 
 	<section id="incidents-list-section">
@@ -149,5 +152,5 @@
 </div>
 
 <style lang="postcss">
-	@reference "../../app.css";
+	@reference "$lib/styles/app.css";
 </style>

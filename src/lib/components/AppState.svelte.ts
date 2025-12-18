@@ -7,6 +7,7 @@ export const appState = $state({
 	selectedLocation: null as Location | null,
 	incidents: [] as Incident[],
 	selectedIncident: null as Incident | null,
-	maxDistance: 5280,
+	maxDaysAgo: 90,
+	maxDistance: 500,
 	distanceUnits: 'feet'
 });

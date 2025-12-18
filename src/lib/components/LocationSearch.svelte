@@ -25,7 +25,7 @@
 	let locationResults = $state<Location[]>([]);
 
 	$effect(() => {
-		if (searchQuery.trim().length >= 1 && database.db) {
+		if (searchQuery.trim().length >= 1 && database?.db) {
 			locationResults = queryLocationsByName(database, searchQuery);
 			selectedIndex = -1;
 		} else {
@@ -126,7 +126,7 @@
 </div>
 
 <style lang="postcss">
-	@reference "../../app.css";
+	@reference "$lib/styles/app.css";
 
 	.location-results-list {
 		@apply absolute w-full max-h-72 overflow-y-auto bg-white border border-gray-300 border-t-0 rounded-b-md shadow-lg z-[1001];

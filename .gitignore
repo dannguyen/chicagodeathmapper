@@ -3,6 +3,7 @@ TODOS.md
 ## claude
 node_modules
 _devnotes
+/test-results
 # Output
 .output
 .vercel
@@ -12,7 +13,7 @@ _devnotes
 # OS
 .DS_Store
 Thumbs.db
-
+*.sqlite
 # Env
 .env
 .env.*

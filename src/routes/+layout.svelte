@@ -1,9 +1,9 @@
 <script lang="ts">
-	import '../app.css';
+	import '$lib/styles/app.css';
 	import '$lib/vendor/fontawesome.js';
 	import { dev } from '$app/environment';
-	import SiteHeader from '$lib/components/SiteHeader.svelte';
-	import SiteFooter from '$lib/components/SiteFooter.svelte';
+	import SiteHeader from '$lib/components/layout/SiteHeader.svelte';
+	import SiteFooter from '$lib/components/layout/SiteFooter.svelte';
 
 	let envClass = dev ? 'env-dev' : 'env-prod';
 </script>
@@ -17,7 +17,7 @@
 </main>
 
 <style lang="postcss">
-	@reference "../app.css";
+	@reference "$lib/styles/app.css";
 
 	.main-container {
 		@apply min-h-screen bg-gray-100 p-4 md:p-8 font-sans;

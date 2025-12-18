@@ -33,6 +33,23 @@ export interface IncidentRecord {
 
 export const maxLimit: number = 1000;
 
+function haversineDistanceFeet(lat1: number, lon1: number, lat2: number, lon2: number): number {
+	const toRad = (x: number) => (x * Math.PI) / 180;
+	const R = 3.28084 * 6371e3; // feet
+
+	const φ1 = toRad(lat1);
+	const φ2 = toRad(lat2);
+	const Δφ = toRad(lat2 - lat1);
+	const Δλ = toRad(lon2 - lon1);
+
+	const a =
+		Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+		Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+	return R * c;
+}
+
 export class DatabaseConnection {
 	db: DbInstance | null = null;
 	url: string;
@@ -110,20 +127,7 @@ export function registerGeospatialFunctions(db: DbInstance): void {
 		deterministic: true,
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		xFunc: (ctxPtr: any, lat1: number, lon1: number, lat2: number, lon2: number) => {
-			const toRad = (x: number) => (x * Math.PI) / 180;
-			const R = 3.28084 * 6371e3; // feet
-
-			const φ1 = toRad(lat1);
-			const φ2 = toRad(lat2);
-			const Δφ = toRad(lat2 - lat1);
-			const Δλ = toRad(lon2 - lon1);
-
-			const a =
-				Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-				Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-			const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-			return R * c;
+			return haversineDistanceFeet(lat1, lon1, lat2, lon2);
 		}
 	});
 
@@ -317,7 +321,7 @@ export function queryIncidentsNearestToLocation(
 			SELECT *
 				, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
 			FROM incidents
-			WHERE distance <= :maxDistance
+			WHERE HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) <= :maxDistance
 			ORDER BY crash_date desc
 			LIMIT :limit
 			;`,
@@ -441,19 +445,7 @@ export interface IntersectionStat {
 
 // Helper to calculate distance in feet between two lat/lon points
 function getDistanceInFeet(lat1: number, lon1: number, lat2: number, lon2: number): number {
-	const R = 3.28084 * 6371e3; // feet
-	const toRad = (x: number) => (x * Math.PI) / 180;
-	const φ1 = toRad(lat1);
-	const φ2 = toRad(lat2);
-	const Δφ = toRad(lat2 - lat1);
-	const Δλ = toRad(lon2 - lon1);
-
-	const a =
-		Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-		Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-	return R * c;
+	return haversineDistanceFeet(lat1, lon1, lat2, lon2);
 }
 
 export function getTopIntersectionsByIncidentCount(conn: DatabaseConnection): IntersectionStat[] {

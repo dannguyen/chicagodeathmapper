@@ -112,7 +112,7 @@
 </div>
 
 <style lang="postcss">
-	@reference "../../app.css";
+	@reference "$lib/styles/app.css";
 
 	.page-container {
 		@apply mx-auto max-w-7xl p-4;

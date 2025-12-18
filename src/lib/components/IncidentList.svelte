@@ -28,7 +28,7 @@
 				</div>
 				<div class="incident-record-details">
 					<div class="incident-date" data-value={item.date}>
-						{item.date.toDateString()}
+						{item.prettyDate}
 
 						<em>
 							({currentAgeSimplified(item.date)})
@@ -50,7 +50,7 @@
 {/if}
 
 <style lang="postcss">
-	@reference "../../app.css";
+	@reference "$lib/styles/app.css";
 
 	.incident-record {
 		@apply border border-gray-400 mb-2 p-4 rounded-md hover:bg-yellow-100;

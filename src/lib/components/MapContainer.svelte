@@ -123,26 +123,58 @@
 		}
 	}
 
+	function syncMapState() {
+		if (!MapperInstance.map) return;
+		if (selectedLocation) {
+			updateMapWithLocation(selectedLocation);
+		} else {
+			clearActiveLayer();
+		}
+		if (incidents.length > 0) {
+			updateNearbyMarkers(incidents);
+		} else if (markerLayerGroup) {
+			markerLayerGroup.clearLayers();
+		}
+	}
+
 	$effect(() => {
 		if (selectedLocation) {
 			updateMapWithLocation(selectedLocation);
 			// Also update radius if maxDistance changes
 			if (selectedLocation.isPoint && maxDistance) {
 				updateSearchRadius();
+			} else if (mapCircleLayer && MapperInstance.map) {
+				MapperInstance.map.removeLayer(mapCircleLayer);
+				mapCircleLayer = null;
+			}
+		} else {
+			clearActiveLayer();
+			if (mapCircleLayer && MapperInstance.map) {
+				MapperInstance.map.removeLayer(mapCircleLayer);
+				mapCircleLayer = null;
 			}
 		}
 		if (incidents.length > 0) {
 			updateNearbyMarkers(incidents);
+		} else if (markerLayerGroup) {
+			markerLayerGroup.clearLayers();
 		}
 	});
 
 	onMount(() => {
+		let destroyed = false;
 		(async () => {
 			await initMap();
+			if (destroyed) return;
+			syncMapState();
+			requestAnimationFrame(() => {
+				MapperInstance.map?.invalidateSize();
+			});
 		})();
 
 		// Return cleanup function for Svelte to run when unmounting
 		return () => {
+			destroyed = true;
 			MapperInstance.destroy();
 		};
 	});
@@ -151,7 +183,7 @@
 <div id="map"></div>
 
 <style lang="postcss">
-	@reference "../../app.css";
+	@reference "$lib/styles/app.css";
 
 	/* Leaflet requires a height to be set explicitly if not using Tailwind classes or if they don't propagate */
 	:global(#map) {
