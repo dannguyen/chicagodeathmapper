@@ -1,5 +1,135 @@
-import type { IncidentRecord } from '$lib/db';
 import { prettifyDate } from '$lib/transformHelpers';
+
+function normalizeString(value: string | null | undefined): string | null {
+	return value != null && value.trim() === '' ? null : (value ?? null);
+}
+
+export interface PersonRecord {
+	person_id?: string | null;
+	person_type?: string | null;
+	sex?: string | null;
+	age?: string | null;
+	city?: string | null;
+	state?: string | null;
+	injury_classification?: string | null;
+}
+
+export class Person {
+	person_id: string | null;
+	person_type: string | null;
+	sex: string | null;
+	age: number | null;
+	city: string | null;
+	state: string | null;
+	injury: string | null;
+
+	constructor(record: PersonRecord = {}) {
+		this.person_id = normalizeString(record.person_id);
+		this.person_type = normalizeString(record.person_type);
+		this.sex = normalizeString(record.sex);
+		this.age = Number(normalizeString(record.age));
+		this.city = normalizeString(record.city);
+		this.state = normalizeString(record.state);
+		this.injury = normalizeString(record.injury_classification);
+	}
+
+	get noun(): string {
+		if (this.sex === 'M') {
+			return this.age >= 18 ? 'man' : 'boy';
+		} else if (this.sex === 'F') {
+			return this.age >= 18 ? 'woman' : 'girl';
+		} else {
+			return 'person';
+		}
+	}
+
+	get description(): string {
+		const agelabel = this.age > 0 ? `${this.age}-year-old` : 'baby';
+		return [agelabel, this.noun].filter((t) => t != null).join(' ');
+	}
+
+	get injury_level(): string {
+		if (this.injury === 'FATAL') {
+			return 'fatal';
+		} else if (this.injury === 'INCAPACITATING INJURY') {
+			return 'incapacitating';
+		} else if (this.injury === 'NONINCAPACITATING INJURY') {
+			return 'non-incapacitating';
+		} else if (this.injury === 'NO INDICATION OF INJURY') {
+			return 'none';
+		} else if (this.injury === 'REPORTED, NOT EVIDENT') {
+			return 'unclear';
+		} else {
+			return 'unknown';
+		}
+	}
+
+	get isInjured(): boolean {
+		return ['fatal', 'incapacitating', 'non-incapacitating', 'unclear'].includes(this.injury_level);
+	}
+
+	get isKilled(): boolean {
+		return this.injury_level === 'fatal';
+	}
+}
+
+export interface VehicleRecord {
+	vehicle_id?: string | null;
+	unit_type?: string | null;
+	make?: string | null;
+	model?: string | null;
+	vehicle_year?: string | null;
+	vehicle_defect?: string | null;
+	vehicle_type?: string | null;
+	vehicle_use?: string | null;
+	passengers?: PersonRecord[];
+}
+
+export class Vehicle {
+	vehicle_id: string | null;
+	unit_type: string | null;
+	make: string | null;
+	model: string | null;
+	vehicle_year: string | null;
+	vehicle_defect: string | null;
+	vehicle_type: string | null;
+	vehicle_use: string | null;
+	passengers: Person[];
+
+	constructor(record: VehicleRecord = {}) {
+		this.vehicle_id = normalizeString(record.vehicle_id);
+		this.unit_type = normalizeString(record.unit_type);
+		this.make = normalizeString(record.make);
+		this.model = normalizeString(record.model);
+		this.vehicle_year = normalizeString(record.vehicle_year);
+		this.vehicle_defect = normalizeString(record.vehicle_defect);
+		this.vehicle_type = normalizeString(record.vehicle_type);
+		this.vehicle_use = normalizeString(record.vehicle_use);
+		this.passengers = (record.passengers ?? []).map((p) => new Person(p));
+	}
+
+	get description(): string {
+		return [this.vehicle_year, this.make, this.model].filter((x) => x != null).join(' ');
+	}
+}
+
+export interface IncidentRecord {
+	longitude: number;
+	latitude: number;
+	injuries_fatal: number;
+	injuries_incapacitating: number;
+	vehicles?: VehicleRecord[] | string | null;
+	non_passengers?: PersonRecord[] | string | null;
+	crash_type?: string;
+	street_no?: string;
+	street_direction?: string;
+	street_name?: string;
+	crash_date: string;
+	prim_contributory_cause?: string;
+	subcategory?: string;
+	distance?: number;
+}
+
 export class Incident {
 	longitude: number;
 	latitude: number;
@@ -10,6 +140,8 @@ export class Incident {
 	distance?: number;
 	injuries_incapacitating: number;
 	injuries_fatal: number;
+	vehicles: Vehicle[];
+	non_passengers: Person[];
 
 	// Constructor now takes raw database row
 	constructor(record: IncidentRecord) {
@@ -28,14 +160,16 @@ export class Incident {
 			]
 				.filter((d) => d !== null)
 				.join(', ') +
-			` in ${record.crash_type ?? 'Unknown'} on ` +
-			`${record.street_no ?? ''} ${record.street_direction ?? ''} ` +
-			`${record.street_name ?? 'Unknown Street'}`;
+			` in ${normalizeString(record.crash_type) ?? 'Unknown'} on ` +
+			`${normalizeString(record.street_no) ?? ''} ${normalizeString(record.street_direction) ?? ''} ` +
+			`${normalizeString(record.street_name) ?? 'Unknown Street'}`;
 		this.date = new Date(Date.parse(record.crash_date));
-		this.category = record.prim_contributory_cause ?? 'Unknown Category';
-		this.subcategory = record.subcategory ?? undefined;
+		this.category = normalizeString(record.prim_contributory_cause) ?? 'Unknown Category';
+		this.subcategory = normalizeString(record.subcategory) ?? undefined;
 		// Ensure distance is a number and handle undefined or null values
 		this.distance = record.distance != null ? parseFloat(record.distance.toFixed(0)) : undefined;
+		this.vehicles = parseVehicles(record.vehicles);
+		this.non_passengers = parsePeople(record.non_passengers);
 	}
 
 	get isFatal(): boolean {
@@ -48,4 +182,42 @@ export class Incident {
 
 export function reifyIncidents(items: IncidentRecord[]): Incident[] {
 	return items.map((item) => new Incident(item));
+}
+
+function parseVehicles(raw: IncidentRecord['vehicles']): Vehicle[] {
+	if (!raw) return [];
+
+	let vehicles: VehicleRecord[] = [];
+	if (typeof raw === 'string') {
+		try {
+			vehicles = JSON.parse(raw) as VehicleRecord[];
+		} catch (e) {
+			console.warn('Failed to parse vehicles JSON', e);
+			return [];
+		}
+	} else {
+		vehicles = raw;
+	}
+
+	if (!Array.isArray(vehicles)) return [];
+	return vehicles.map((v) => new Vehicle(v));
+}
+
+function parsePeople(raw: IncidentRecord['non_passengers']): Person[] {
+	if (!raw) return [];
+
+	let people: PersonRecord[] = [];
+	if (typeof raw === 'string') {
+		try {
+			people = JSON.parse(raw) as PersonRecord[];
+		} catch (e) {
+			console.warn('Failed to parse non_passengers JSON', e);
+			return [];
+		}
+	} else {
+		people = raw;
+	}
+
+	if (!Array.isArray(people)) return [];
+	return people.map((p) => new Person(p));
 }

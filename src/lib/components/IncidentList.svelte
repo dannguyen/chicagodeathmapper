@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { currentAgeSimplified, prettifyInteger } from '$lib/transformHelpers';
-	import { Incident } from '$lib/incident';
+	import { Incident, Vehicle } from '$lib/incident';
 	import type { Location } from '$lib/location';
 
 	let { incidents, selectedLocation, distanceUnits, showIncidentOnMap } = $props<{
@@ -42,6 +42,29 @@
 							{prettifyInteger(item.distance as number)}
 							{distanceUnits} away
 						</div>
+					{/if}
+
+					{#if item.vehicles}
+						<ul class="incident-vehicles">
+							{#each item.vehicles as vh}
+								<li class="vehicle">
+									{vh.description}
+									<ul class="vehicle-passengers">
+										{#each vh.passengers as po}
+											<li class="person">
+												{po.description}
+
+												{#if po.isInjured}
+													had <span class="injury injury-{po.injury_level}">
+														a {po.injury_level} injury
+													</span>
+												{/if}
+											</li>
+										{/each}
+									</ul>
+								</li>
+							{/each}
+						</ul>
 					{/if}
 				</div>
 			</div>
@@ -90,5 +113,29 @@
 
 	.incident-distance {
 		@apply text-purple-700 font-semibold;
+	}
+
+	.incident-vehicles {
+		@apply pl-4 list-disc text-gray-700 mt-2;
+	}
+
+	.incident-vehicles .vehicle {
+		@apply mb-1;
+	}
+
+	.injury-fatal {
+		@apply ml-1 text-red-700;
+	}
+
+	.injury-incapacitating {
+		@apply ml-1 text-orange-700;
+	}
+
+	.vehicle-passengers {
+		@apply pl-6 list-disc text-gray-600 mt-1;
+	}
+
+	.vehicle-passengers .person .injury {
+		@apply font-semibold;
 	}
 </style>
