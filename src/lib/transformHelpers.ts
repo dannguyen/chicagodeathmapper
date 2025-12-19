@@ -86,3 +86,12 @@ export function prettifyInteger(num: number): string {
 
 	return numeral(num).format('0,0');
 }
+
+export function prettifyDate(date: Date): string {
+	return date.toLocaleDateString('en-US', {
+		weekday: 'long',
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric'
+	});
+}

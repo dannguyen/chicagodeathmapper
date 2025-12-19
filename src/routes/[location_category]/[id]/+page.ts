@@ -15,7 +15,12 @@ export const load: PageLoad = async ({ params }) => {
 		}
 	}
 
-	const location = queryLocationById(appState.database, id);
+	const db = appState.database;
+	if (!db) {
+		throw error(500, 'Database not initialized.');
+	}
+
+	const location = queryLocationById(db, id);
 
 	if (!location) {
 		throw error(404, `Location with ID \'${id}\' not found.`);

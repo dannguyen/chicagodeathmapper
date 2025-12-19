@@ -20,7 +20,8 @@ export interface LocationRecord {
 export interface IncidentRecord {
 	longitude: number;
 	latitude: number;
-	injuries_fatal?: string;
+	injuries_fatal: number;
+	injuries_incapacitating: number;
 	crash_type?: string;
 	street_no?: string;
 	street_direction?: string;
@@ -32,6 +33,11 @@ export interface IncidentRecord {
 }
 
 export const maxLimit: number = 1000;
+
+function normalizeDateInput(date: Date | string | null | undefined): string {
+	const d = date ? new Date(date) : new Date();
+	return d.toISOString().split('T')[0];
+}
 
 function haversineDistanceFeet(lat1: number, lon1: number, lat2: number, lon2: number): number {
 	const toRad = (x: number) => (x * Math.PI) / 180;
@@ -308,35 +314,6 @@ export function queryLocationsByCategory(conn: DatabaseConnection, category: str
 	return (results as LocationRecord[]).map((row) => new Location(row));
 }
 
-export function queryIncidentsNearestToLocation(
-	conn: DatabaseConnection,
-	location: Location,
-	maxDistance: number = 5280,
-	limit: number = maxLimit
-): IncidentRecord[] {
-	if (!conn.db) return [];
-
-	const results = conn.db.exec({
-		sql: `
-			SELECT *
-				, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
-			FROM incidents
-			WHERE HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) <= :maxDistance
-			ORDER BY crash_date desc
-			LIMIT :limit
-			;`,
-		bind: {
-			':lat': location.latitude,
-			':lon': location.longitude,
-			':maxDistance': maxDistance,
-			':limit': limit
-		},
-		rowMode: 'object'
-	});
-
-	return results as IncidentRecord[];
-}
-
 export interface NeighborhoodStat {
 	id: string;
 	name: string;
@@ -535,24 +512,102 @@ export function getTopIntersectionsByRecentIncidents(conn: DatabaseConnection): 
 export function queryIncidentsInsideLocation(
 	conn: DatabaseConnection,
 	location: Location,
+	maxDaysAgo: number = 90,
+	selectedDate: Date | string = new Date(),
 	limit: number = maxLimit
 ): IncidentRecord[] {
 	if (!conn.db) return [];
+	const pastOffset = `-${maxDaysAgo} days`;
+	const futureOffset = `+${maxDaysAgo} days`;
+	const selectedDateStr = normalizeDateInput(selectedDate);
 	const results = conn.db.exec({
 		sql: `
 			SELECT *
 				, NULL as distance
 			FROM incidents
 			WHERE
-			ST_Contains(
-				:geom,
-				MakePoint(longitude, latitude, 4326)
-			)
+				ST_Contains(
+					:geom,
+					MakePoint(longitude, latitude, 4326)
+				)
+				AND crash_date BETWEEN DATE(:selectedDate, :pastOffset) AND DATE(:selectedDate, :futureOffset)
 			ORDER BY crash_date desc
 			LIMIT :limit
 			;`,
 		bind: {
 			':geom': location.the_geom,
+			':limit': limit,
+			':selectedDate': selectedDateStr,
+			':pastOffset': pastOffset,
+			':futureOffset': futureOffset
+		},
+		rowMode: 'object'
+	});
+
+	return results as IncidentRecord[];
+}
+
+export function queryIncidentsMostRecentNearLocation(
+	conn: DatabaseConnection,
+	location: Location,
+	maxDistance: number = 5280,
+	maxDaysAgo: number = 90,
+	selectedDate: Date | string = new Date(),
+	limit: number = maxLimit
+): IncidentRecord[] {
+	if (!conn.db) return [];
+	const pastOffset = `-${maxDaysAgo} days`;
+	const futureOffset = `+${maxDaysAgo} days`;
+	const selectedDateStr = normalizeDateInput(selectedDate);
+
+	const results = conn.db.exec({
+		sql: `
+			SELECT *
+				, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
+			FROM incidents
+			WHERE
+				crash_date BETWEEN DATE(:selectedDate, :pastOffset) AND DATE(:selectedDate, :futureOffset)
+				AND HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) <= :maxDistance
+			ORDER BY crash_date desc
+			LIMIT :limit
+			;`,
+		bind: {
+			':lat': location.latitude,
+			':lon': location.longitude,
+			':maxDistance': maxDistance,
+			':selectedDate': selectedDateStr,
+			':pastOffset': pastOffset,
+			':futureOffset': futureOffset,
+			':limit': limit
+		},
+		rowMode: 'object'
+	});
+
+	return results as IncidentRecord[];
+}
+
+export function queryIncidentsNearestToLocation(
+	// to be deprecated soon...
+	conn: DatabaseConnection,
+	location: Location,
+	maxDistance: number = 5280,
+	limit: number = maxLimit
+): IncidentRecord[] {
+	if (!conn.db) return [];
+
+	const results = conn.db.exec({
+		sql: `
+			SELECT *
+				, HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) as distance
+			FROM incidents
+			WHERE HAVERSINE_DISTANCE(latitude, longitude, :lat, :lon) <= :maxDistance
+			ORDER BY crash_date desc
+			LIMIT :limit
+			;`,
+		bind: {
+			':lat': location.latitude,
+			':lon': location.longitude,
+			':maxDistance': maxDistance,
 			':limit': limit
 		},
 		rowMode: 'object'

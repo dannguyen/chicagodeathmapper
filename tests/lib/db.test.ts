@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
 	maxLimit,
 	queryIncidentsNearestToLocation,
+	queryIncidentsMostRecentNearLocation,
 	queryLocationsByCategory,
 	registerGeospatialFunctions,
 	type DbInstance,
@@ -165,6 +166,79 @@ describe('db', () => {
 
 			expect(results).toHaveLength(1);
 			expect(results[0].distance).toBe(100);
+		});
+	});
+
+	describe('queryIncidentsMostRecentNearLocation', () => {
+		const mockLocation: Location = new Location({
+			id: 'loc-1',
+			name: 'Recent Loc',
+			latitude: 41.9,
+			longitude: -87.7,
+			category: 'intersection',
+			the_geom: 'POINT (-87.7 41.9)'
+		});
+
+		const createMockConnection = (
+			overrides: Partial<DatabaseConnection> = {}
+		): DatabaseConnection => {
+			return {
+				db: null,
+				url: 'mock-url',
+				init: vi.fn(),
+				getDatabaseSummary: vi.fn(),
+				...overrides
+			};
+		};
+
+		it('returns empty array if db is null', () => {
+			const conn = createMockConnection({ db: null });
+			const results = queryIncidentsMostRecentNearLocation(conn, mockLocation);
+			expect(results).toEqual([]);
+		});
+
+		it('binds default parameters including maxDaysAgo', () => {
+			const mockExec = vi.fn().mockReturnValue([{ id: 1 }]);
+			const conn = createMockConnection({ db: { exec: mockExec } as unknown as DbInstance });
+
+			const results = queryIncidentsMostRecentNearLocation(conn, mockLocation);
+
+			expect(mockExec).toHaveBeenCalledWith(
+				expect.objectContaining({
+					bind: {
+						':lat': mockLocation.latitude,
+						':lon': mockLocation.longitude,
+						':maxDistance': 5280,
+						':selectedDate': expect.any(String),
+						':pastOffset': '-90 days',
+						':futureOffset': '+90 days',
+						':limit': maxLimit
+					}
+				})
+			);
+			expect(results).toEqual([{ id: 1 }]);
+		});
+
+		it('respects overrides for maxDistance, maxDaysAgo, and limit', () => {
+			const mockExec = vi.fn().mockReturnValue([{ id: 2 }]);
+			const conn = createMockConnection({ db: { exec: mockExec } as unknown as DbInstance });
+
+			queryIncidentsMostRecentNearLocation(conn, mockLocation, 1000, 7, '2020-01-01', 5);
+
+			expect(mockExec).toHaveBeenCalledWith(
+				expect.objectContaining({
+					bind: {
+						':lat': mockLocation.latitude,
+						':lon': mockLocation.longitude,
+						':maxDistance': 1000,
+						':selectedDate': '2020-01-01',
+						':pastOffset': '-7 days',
+						':futureOffset': '+7 days',
+						':limit': 5
+					},
+					sql: expect.stringContaining('crash_date BETWEEN DATE(:selectedDate, :pastOffset)')
+				})
+			);
 		});
 	});
 

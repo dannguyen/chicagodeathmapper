@@ -110,16 +110,23 @@
 			}
 		});
 
-		// After adding all markers, adjust map view to fit all markers and the selected location
-		if (items.length > 0 && selectedLocation) {
-			const latLngs: L.LatLngExpression[] = items.map((item) => [item.latitude, item.longitude]);
-			latLngs.push([selectedLocation.latitude, selectedLocation.longitude]);
+		fitToIncidents(items);
+	}
 
+	export function fitToIncidents(items: Incident[]) {
+		if (!MapperInstance.map || !MapperInstance.L) return;
+
+		if (items.length > 0) {
+			const latLngs: L.LatLngExpression[] = items.map((item) => [item.latitude, item.longitude]);
+			if (selectedLocation) {
+				latLngs.push([selectedLocation.latitude, selectedLocation.longitude]);
+			}
 			const bounds = MapperInstance.L.latLngBounds(latLngs);
 			MapperInstance.map.fitBounds(bounds, { padding: [50, 50] });
+			MapperInstance.map.invalidateSize();
 		} else if (selectedLocation) {
-			// If no incidents but there's a selected location, just set view to the location
 			MapperInstance.map.setView([selectedLocation.latitude, selectedLocation.longitude], 16);
+			MapperInstance.map.invalidateSize();
 		}
 	}
 
@@ -137,16 +144,12 @@
 		}
 	}
 
+	// React to location changes only
 	$effect(() => {
-		if (selectedLocation) {
-			updateMapWithLocation(selectedLocation);
-			// Also update radius if maxDistance changes
-			if (selectedLocation.isPoint && maxDistance) {
-				updateSearchRadius();
-			} else if (mapCircleLayer && MapperInstance.map) {
-				MapperInstance.map.removeLayer(mapCircleLayer);
-				mapCircleLayer = null;
-			}
+		const loc = selectedLocation;
+		if (!MapperInstance.map) return;
+		if (loc) {
+			updateMapWithLocation(loc);
 		} else {
 			clearActiveLayer();
 			if (mapCircleLayer && MapperInstance.map) {
@@ -154,10 +157,25 @@
 				mapCircleLayer = null;
 			}
 		}
+	});
+
+	// React to distance filter changes without recentering
+	$effect(() => {
+		if (selectedLocation?.isPoint && maxDistance) {
+			updateSearchRadius();
+		} else if (mapCircleLayer && MapperInstance.map) {
+			MapperInstance.map.removeLayer(mapCircleLayer);
+			mapCircleLayer = null;
+		}
+	});
+
+	// React to incident result changes
+	$effect(() => {
 		if (incidents.length > 0) {
 			updateNearbyMarkers(incidents);
 		} else if (markerLayerGroup) {
 			markerLayerGroup.clearLayers();
+			fitToIncidents([]);
 		}
 	});
 
