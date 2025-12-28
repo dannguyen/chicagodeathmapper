@@ -17,7 +17,6 @@
 	} from '$lib/db';
 	import type { Incident } from '$lib/incident';
 	import IncidentList from '$lib/components/IncidentList.svelte';
-	import IncidentDetail from '$lib/components/IncidentDetail.svelte';
 	import MapContainer from '$lib/components/MapContainer.svelte';
 
 	let { initialLocationId = null } = $props<{
@@ -218,11 +217,6 @@
 				maxDistance={appState.maxDistance}
 			/>
 		</section>
-
-		<IncidentDetail
-			selectedIncident={appState.selectedIncident}
-			selectedLocation={appState.selectedLocation}
-		/>
 	</div>
 
 	<section id="incidents-list-section">

@@ -22,6 +22,9 @@ describe('Person', () => {
 		expect(person.city).toBe('Chicago');
 		expect(person.state).toBe('IL');
 		expect(person.injury).toBe('FATAL');
+		expect(person.injury_level).toBe('fatal');
+		expect(person.isKilled).toBe(true);
+		expect(person.isInjured).toBe(true);
 	});
 
 	it('handles missing fields gracefully', () => {
@@ -30,8 +33,23 @@ describe('Person', () => {
 		expect(person.city).toBeNull();
 	});
 
+	it('derives ageLabel', () => {
+		const baby = new Person({ age: '0' });
+		expect(baby.ageLabel).toBe('baby');
+
+		const kid = new Person({ age: '1' });
+		expect(kid.ageLabel).toBe('1-year-old');
+
+		const woman = new Person({ age: '123', sex: 'F' });
+		expect(woman.ageLabel).toBe('123-year-old');
+
+		const ageless = new Person({ sex: 'F' });
+		expect(ageless.ageLabel).toBe('(age unknown)');
+	});
+
 	it('derives noun by sex/age and builds description', () => {
 		const baby = new Person({ sex: 'M', age: '0' });
+		expect(baby.age).toBe(0);
 		expect(baby.noun).toBe('boy');
 		expect(baby.description).toBe('baby boy');
 

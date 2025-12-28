@@ -3,7 +3,8 @@ import {
 	currentAgeInDays,
 	currentAgePrettified,
 	currentAgeSimplified,
-	prettifyInteger
+	prettifyInteger,
+	prettifyDate
 } from '$lib/transformHelpers';
 
 describe('transformHelpers', () => {
@@ -124,6 +125,13 @@ describe('transformHelpers', () => {
 
 		it('should handle 0', () => {
 			expect(prettifyInteger(0)).toBe('0');
+		});
+	});
+
+	describe('prettifyDate', () => {
+		it('should make dates human readable', () => {
+			const dt = new Date('2025-01-01T13:00:00Z');
+			expect(prettifyDate(dt)).toBe('Wednesday, January 1, 2025');
 		});
 	});
 });

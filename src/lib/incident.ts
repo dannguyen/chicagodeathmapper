@@ -27,7 +27,8 @@ export class Person {
 		this.person_id = normalizeString(record.person_id);
 		this.person_type = normalizeString(record.person_type);
 		this.sex = normalizeString(record.sex);
-		this.age = Number(normalizeString(record.age));
+		const ageValue = normalizeString(record.age);
+		this.age = ageValue == null ? null : Number(ageValue);
 		this.city = normalizeString(record.city);
 		this.state = normalizeString(record.state);
 		this.injury = normalizeString(record.injury_classification);
@@ -35,17 +36,28 @@ export class Person {
 
 	get noun(): string {
 		if (this.sex === 'M') {
-			return this.age >= 18 ? 'man' : 'boy';
+			return this.age && this.age >= 18 ? 'man' : 'boy';
 		} else if (this.sex === 'F') {
-			return this.age >= 18 ? 'woman' : 'girl';
+			return this.age && this.age >= 18 ? 'woman' : 'girl';
+		} else if (this.age && this.age < 1) {
+			return 'baby';
 		} else {
 			return 'person';
 		}
 	}
 
+	get ageLabel(): string {
+		if (this.age === 0) {
+			return 'baby';
+		} else if (this.age != null && this.age > 0) {
+			return `${this.age}-year-old`;
+		} else {
+			return '(age unknown)';
+		}
+	}
+
 	get description(): string {
-		const agelabel = this.age > 0 ? `${this.age}-year-old` : 'baby';
-		return [agelabel, this.noun].filter((t) => t != null).join(' ');
+		return [this.ageLabel, this.noun].filter((t) => t != null && t !== '').join(' ');
 	}
 
 	get injury_level(): string {
@@ -66,6 +78,10 @@ export class Person {
 
 	get isInjured(): boolean {
 		return ['fatal', 'incapacitating', 'non-incapacitating', 'unclear'].includes(this.injury_level);
+	}
+
+	get isUninjured(): boolean {
+		return ['none'].includes(this.injury_level);
 	}
 
 	get isKilled(): boolean {

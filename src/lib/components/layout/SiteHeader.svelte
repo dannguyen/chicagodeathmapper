@@ -5,7 +5,7 @@
 
 <header class="main-header">
 	<h1 class="site-title">
-		<a href={resolve('/')}> Chicago Death Mapper </a>
+		<a href={resolve('/')}> Chicago Crash Mapper </a>
 	</h1>
 	<SiteNav />
 </header>
