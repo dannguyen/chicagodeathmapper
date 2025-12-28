@@ -33,6 +33,18 @@ describe('Person', () => {
 		expect(person.city).toBeNull();
 	});
 
+	it('treats blank or non-numeric ages as null', () => {
+		const blank = new Person({ age: '' });
+		expect(blank.age).toBeNull();
+		expect(blank.ageLabel).toBe('(age unknown)');
+
+		const whitespace = new Person({ age: '  ' });
+		expect(whitespace.age).toBeNull();
+
+		const bad = new Person({ age: 'not-a-number' });
+		expect(bad.age).toBeNull();
+	});
+
 	it('derives ageLabel', () => {
 		const baby = new Person({ age: '0' });
 		expect(baby.ageLabel).toBe('baby');
@@ -64,6 +76,16 @@ describe('Person', () => {
 		const neutral = new Person({ sex: 'X', age: '20' });
 		expect(neutral.noun).toBe('person');
 		expect(neutral.description).toBe('20-year-old person');
+
+		const infant = new Person({ age: '0.5' });
+		expect(infant.age).toBe(0.5);
+		expect(infant.noun).toBe('baby');
+		expect(infant.description).toBe('baby');
+
+		const babyboy = new Person({ age: '0.9', sex: 'M' });
+		expect(babyboy.age).toBe(0.9);
+		expect(babyboy.noun).toBe('boy');
+		expect(babyboy.description).toBe('baby boy');
 	});
 });
 
@@ -172,5 +194,23 @@ describe('Incident vehicles and non_passengers parsing', () => {
 		});
 		expect(incidentBadJson.vehicles).toEqual([]);
 		expect(incidentBadJson.non_passengers).toEqual([]);
+	});
+
+	it('formats title and distance with fallbacks', () => {
+		const incident = new Incident({
+			longitude: -87.7,
+			latitude: 41.9,
+			injuries_fatal: 0,
+			injuries_incapacitating: 2,
+			crash_date: '2024-02-01',
+			crash_type: '',
+			street_no: null,
+			street_direction: 'N',
+			street_name: '',
+			distance: 1234.56
+		});
+
+		expect(incident.title).toBe('2 seriously injured in Unknown on  N Unknown Street');
+		expect(incident.distance).toBe(1235);
 	});
 });

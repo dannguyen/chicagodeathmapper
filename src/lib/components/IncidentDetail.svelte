@@ -12,50 +12,52 @@
 </script>
 
 <div id="incident-detail">
-	<h3>{incident.title}</h3>
-	<div class="incident-date" data-value={incident.date}>
-		{incident.prettyDate}
+	{#if incident}
+		<h3>{incident.title}</h3>
+		<div class="incident-date" data-value={incident.date}>
+			{incident.prettyDate}
 
-		<em>
-			({currentAgeSimplified(incident.date)})
-		</em>
-	</div>
-
-	<div class="incident-category">
-		{incident.category}
-	</div>
-	{#if selectedLocation.isPoint}
-		<div class="incident-distance">
-			{prettifyInteger(incident.distance as number)}
-			{distanceUnits} away
+			<em>
+				({currentAgeSimplified(incident.date)})
+			</em>
 		</div>
-	{/if}
 
-	{#if incident.vehicles}
-		<ul class="incident-vehicles">
-			{#each incident.vehicles as vh}
-				<li class="vehicle">
-					{vh.description}
-					<ul class="vehicle-passengers">
-						{#each vh.passengers as po}
-							<li class="person">
-								{po.description}
+		<div class="incident-category">
+			{incident.category}
+		</div>
+		{#if selectedLocation?.isPoint}
+			<div class="incident-distance">
+				{prettifyInteger(incident.distance as number)}
+				{distanceUnits} away
+			</div>
+		{/if}
 
-								{#if po.isInjured}
-									suffered <span class="injury injury-{po.injury_level}">
-										a {po.injury_level} injury
-									</span>
-								{:else if po.isUninjured}
-									was <span class="injury injury-uninjured"> uninjured </span>
-								{:else}
-									suffered <span class="injury injury-unknown"> an unknown/unclear injury </span>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-				</li>
-			{/each}
-		</ul>
+		{#if incident.vehicles}
+			<ul class="incident-vehicles">
+				{#each incident.vehicles as vh}
+					<li class="vehicle">
+						{vh.description}
+						<ul class="vehicle-passengers">
+							{#each vh.passengers as po}
+								<li class="person">
+									{po.description}
+
+									{#if po.isInjured}
+										suffered <span class="injury injury-{po.injury_level}">
+											a {po.injury_level} injury
+										</span>
+									{:else if po.isUninjured}
+										was <span class="injury injury-uninjured"> uninjured </span>
+									{:else}
+										suffered <span class="injury injury-unknown"> an unknown/unclear injury </span>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	{/if}
 </div>
 

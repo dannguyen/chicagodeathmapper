@@ -28,7 +28,8 @@ export class Person {
 		this.person_type = normalizeString(record.person_type);
 		this.sex = normalizeString(record.sex);
 		const ageValue = normalizeString(record.age);
-		this.age = ageValue == null ? null : Number(ageValue);
+		const parsedAge = ageValue == null ? null : Number(ageValue);
+		this.age = parsedAge == null || Number.isNaN(parsedAge) ? null : parsedAge;
 		this.city = normalizeString(record.city);
 		this.state = normalizeString(record.state);
 		this.injury = normalizeString(record.injury_classification);
@@ -36,10 +37,10 @@ export class Person {
 
 	get noun(): string {
 		if (this.sex === 'M') {
-			return this.age && this.age >= 18 ? 'man' : 'boy';
+			return this.age != null && this.age >= 18 ? 'man' : 'boy';
 		} else if (this.sex === 'F') {
-			return this.age && this.age >= 18 ? 'woman' : 'girl';
-		} else if (this.age && this.age < 1) {
+			return this.age != null && this.age >= 18 ? 'woman' : 'girl';
+		} else if (this.age != null && this.age < 1) {
 			return 'baby';
 		} else {
 			return 'person';
@@ -47,7 +48,7 @@ export class Person {
 	}
 
 	get ageLabel(): string {
-		if (this.age === 0) {
+		if (this.age != null && this.age < 1) {
 			return 'baby';
 		} else if (this.age != null && this.age > 0) {
 			return `${this.age}-year-old`;
@@ -57,7 +58,8 @@ export class Person {
 	}
 
 	get description(): string {
-		return [this.ageLabel, this.noun].filter((t) => t != null && t !== '').join(' ');
+		const thing = [this.ageLabel, this.noun].filter((t) => t != null && t !== '');
+		return [...new Set(thing)].join(' ');
 	}
 
 	get injury_level(): string {
@@ -137,7 +139,7 @@ export interface IncidentRecord {
 	vehicles?: VehicleRecord[] | string | null;
 	non_passengers?: PersonRecord[] | string | null;
 	crash_type?: string;
-	street_no?: string;
+	street_no?: string | null;
 	street_direction?: string;
 	street_name?: string;
 	crash_date: string;
